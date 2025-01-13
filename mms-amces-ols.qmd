@@ -1,0 +1,168 @@
+# MMs and AMCEs with OLS
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.height = 6 * 0.618,
+  fig.retina = 3,
+  dev = "ragg_png",
+  fig.align = "center",
+  out.width = "90%",
+  collapse = TRUE,
+  cache.extra = 1234  # Change number to invalidate cache
+)
+
+options(
+  digits = 4,
+  width = 300,
+  dplyr.summarise.inform = FALSE
+)
+```
+
+```{r}
+#| label: packages-data
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(marginaleffects)
+library(parameters)
+library(tinytable)
+library(scales)
+library(ggforce)
+
+stickers <- readRDS("data/processed_data/study_5_sticker.rds")
+```
+
+## Model
+
+When estimating causal effects, the main estimand of interest is an average treatment effect, or $E(Y \mid X)$. In political science and economics, analysts typically rely on an ordinary least squares (OLS) estimator, or a linear probability model (LPM), where the $\beta$ term in a linear regression model (or a partial derivative or marginal effect, if interaction terms are involved) represents the average effect of the treatment on the outcome. For those trained in predictive modeling or for Bayesians who seek out distributional families that reflect the underlying data generating process of the outcome variable, using LPMs on a binary (or multinomial) outcome can feel wrong. However, @Gomila:2021 demonstrates that in experiments with binary outcomes, LPMs are typically more consistent and unbiased than logistic regression estimators.
+
+This means that analyzing conjoint data can be as simple as a basic linear model with `lm()`.
+
+```{r}
+model_ols <- lm(
+  choice ~ price + packaging + flavor,
+  data = stickers
+)
+
+model_parameters(model_ols, verbose = FALSE)
+```
+
+While it is tempting (and possible) to determine the marginal means and causal effects from these raw regression coefficients—i.e., the intercept represents the average probability of selecting a \$2 granola bar when all other characteristics are set to their reference values—it is more advisable to use the post-estimation functions from the {marginaleffects} package to calculate average predictions and comparisons. {marginaleffects} can provide probability-scale averages and contrasts, can calculate marginal means and effects across a balanced grid of attributed levels, and can adjust the estimated standard errors to account for repeated respondents.
+
+## Marginal means
+
+Marginal means represent the probability-scale fitted values from the model, calculated across a balanced reference grid of all possible combinations of feature levels. These predictions are then marginalized or averaged across features of interest.
+
+In the case of the sticker experiment, there are 12 possible combinations of price, packaging, and flavor:
+
+```{r}
+feature_grid <- stickers |> 
+  tidyr::expand(price, packaging, flavor)
+tt(feature_grid)
+```
+
+We can feed each row of this balanced grid into the model to generate 12 predicted values:
+
+```{r}
+predictions(model_ols, newdata = feature_grid)
+```
+
+Finally, we can marginalize or average these predicted values across features of interest. For instance, to find the marginal means for the two packaging conditions, we can calculate the group averages for the two types of packaging:
+
+```{r}
+predictions(model_ols, newdata = feature_grid) |> 
+  group_by(packaging) |> 
+  summarize(avg = mean(estimate))
+```
+
+Manually creating a balanced reference grid and using `group_by()` and `summarize()` is useful for understanding the intuition behind finding estimated marginal means, but in practice it is better to use `avg_predictions()` from {marginaleffects}, which (1) creates the balanced grid automatically, (2) provides standard errors and other estimates of uncertainty, and (3) can adjust the standard errors to account for repeated respondents:
+
+```{r}
+avg_predictions(
+  model_ols,
+  newdata = "balanced",
+  by = "packaging",
+  vcov = ~resp_id
+)
+```
+
+We can calculate the marginal means individually for each conjoint feature, then combine them all into one large data frame for plotting and table-making.
+
+```{r}
+mm_price_ols <- avg_predictions(
+  model_ols,
+  newdata = "balanced",
+  by = "price",
+  vcov = ~resp_id
+) |>
+  rename(attribute = price)
+
+mm_packaging_ols <- avg_predictions(
+  model_ols,
+  newdata = "balanced",
+  by = "packaging",
+  vcov = ~resp_id
+) |>
+  rename(attribute = packaging)
+
+mm_flavor_ols <- avg_predictions(
+  model_ols,
+  newdata = "balanced",
+  by = "flavor",
+  vcov = ~resp_id
+) |>
+  rename(attribute = flavor)
+
+mm_ols <- bind_rows(list(
+  "Price" = mm_price_ols,
+  "Packaging" = mm_packaging_ols,
+  "Flavor" = mm_flavor_ols
+), .id = "feature") |>
+  as_tibble()
+```
+
+```{r}
+ggplot(
+  mm_ols,
+  aes(x = estimate, y = fct_rev(attribute), color = feature)
+) +
+  geom_vline(xintercept = 0.5) +
+  geom_pointrange(aes(xmin = conf.low, xmax = conf.high)) +
+  scale_x_continuous(labels = label_percent()) +
+  guides(color = "none") +
+  facet_col(vars(feature), scales = "free_y", space = "free")
+```
+
+
+## Average marginal component effects (AMCEs)
+
+```{r}
+amce_ols <- avg_comparisons(
+  model_ols,
+  newdata = "balanced",
+  vcov = ~resp_id
+)
+amce_ols
+```
+
+```{r}
+# Need to use %>% instead of |> here because of the . placeholder in add_row()
+amce_ols %>%
+  separate_wider_delim(
+    contrast, 
+    delim = " - ", 
+    names = c("attribute", "reference_level")
+  ) %>%
+  add_row(
+    estimate = 0, conf.low = 0, conf.high = 0,
+    term = unique(.$term), attribute = unique(.$reference_level)
+  ) %>%
+  ggplot(aes(x = estimate, y = fct_rev(attribute), color = term)) +
+  geom_vline(xintercept = 0) +
+  geom_pointrange(aes(xmin = conf.low, xmax = conf.high)) +
+  scale_x_continuous(labels = label_percent()) +
+  guides(color = "none") +
+  facet_col(vars(term), scales = "free_y", space = "free")
+```

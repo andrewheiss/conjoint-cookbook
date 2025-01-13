@@ -1,0 +1,320 @@
+# Preferences: Utilities, predictions, and simulations
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.height = 6 * 0.618,
+  fig.retina = 3,
+  dev = "ragg_png",
+  fig.align = "center",
+  out.width = "90%",
+  collapse = TRUE,
+  cache.extra = 1234  # Change number to invalidate cache
+)
+
+options(
+  digits = 4,
+  width = 300,
+  dplyr.summarise.inform = FALSE
+)
+```
+
+```{r}
+#| label: packages-data
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(mlogit)
+library(marginaleffects)
+library(parameters)
+library(tinytable)
+library(scales)
+library(ggforce)
+
+stickers <- readRDS("data/processed_data/study_5_sticker.rds")
+
+stickers_indexed <- stickers |> 
+  group_by(resp_id, question) |> 
+  mutate(choice_id = cur_group_id()) |> 
+  ungroup() |> 
+  dfidx(
+    idx = list(c("choice_id", "resp_id"), "alt"),
+    choice = "choice",
+    shape = "long"
+  )
+```
+
+```{r}
+#| echo: true
+
+model_mlogit <- mlogit(
+  choice ~ 0 + price + packaging + flavor,
+  data = stickers_indexed
+)
+
+pars_random <- rep("n", length(model_mlogit$coefficients)) |> 
+  setNames(names(model_mlogit$coef))
+
+model_mlogit_hierarchical <- mlogit(
+  choice ~ 0 + price + packaging + flavor,
+  rpar = pars_random, panel = TRUE, correlation = TRUE,
+  data = stickers_indexed
+)
+```
+
+
+## Population-level stuff
+
+### Model βs
+
+```{r}
+#| echo: false
+
+model_parameters(model_mlogit_hierarchical, verbose = FALSE) |> 
+  filter(!str_detect(Parameter, "chol")) |> 
+  select(-df_error, -CI) |> 
+  tt() |> 
+  format_tt(j = 2:6, fn = scales::label_number(accuracy = 0.01)) |> 
+  format_tt(j = 7, fn = scales::label_pvalue())
+```
+
+```{r}
+#| echo: false
+
+model_parameters(model_mlogit_hierarchical, verbose = FALSE) |> 
+  filter(!str_detect(Parameter, "chol")) |> 
+  ggplot(aes(x = Coefficient, y = Parameter)) +
+  geom_vline(xintercept = 0) +
+  geom_pointrange(aes(xmin = CI_low, xmax = CI_high)) +
+  annotate(
+    geom = "label", x = 0.2, y = 0.7, hjust = 0,
+    label = "More preferred →"
+  )+
+  annotate(
+    geom = "label", x = -0.2, y = 0.7, hjust = 1, 
+    label = "← Less preferred"
+  )
+```
+
+## Individual-level stuff: Part-worth utilities and ratios
+
+```{r}
+#| echo: false
+
+feature_level_lookup <- tribble(
+  ~coef, ~level, ~feature,
+  "price.2", "$2", "Price",
+  "price.3", "$3", "Price",
+  "price.4", "$4", "Price",
+  "packagingPaper", "Plastic + paper", "Packaging",
+  "packagingPlastic...sticker", "Plastic + sticker", "Packaging",
+  "flavorChocolate", "Chocolate", "Flavor",
+  "flavorNuts", "Nuts", "Flavor"
+) |> 
+  mutate(across(c(level, feature), fct_inorder))
+
+individual_part_worths <- model_mlogit_hierarchical$indpar |> 
+  mutate(price.2 = 0, packagingPaper = 0, flavorChocolate = 0) |> 
+  pivot_longer(-id, names_to = "coef") |> 
+  left_join(feature_level_lookup, by = join_by(coef))
+
+individual_part_worths |> 
+  select(-coef) |> 
+  pivot_wider(names_from = c(level, feature), values_from = value) |> 
+  slice(1:5) |> 
+  select(
+    ID = id, `$2` = `$2_Price`, `$3` = `$3_Price`, `$4` = `$4_Price`,
+    Paper = `Plastic + paper_Packaging`, Sticker = `Plastic + sticker_Packaging`,
+    Chocolate = Chocolate_Flavor, Nuts = Nuts_Flavor
+  ) |> 
+  tt() |> 
+  format_tt(j = c(3, 4, 6, 8), fn = scales::label_number(accuracy = 0.01)) |> 
+  group_tt(
+    j = list(
+      "Price" = 2:4,
+      "Packaging" = 5:6,
+      "Flavor" = 7:8
+    )
+  ) |> 
+  style_tt(
+    i = 1:5,
+    j = c(2, 5, 7), line = "l"
+  ) |> 
+  style_tt(
+    i = 1, j = 2:4, background = "yellow"
+  ) |> 
+  style_tt(
+    i = 1, j = 5:6, background = "lightblue"
+  ) |> 
+  style_tt(
+    i = 1, j = 7:8, background = "lightgreen"
+  )
+```
+
+For respondent 4, the difference in preference when moving from \$2 to \$4 is roughly the same as the preference for a sticker
+
+We can also calculate the relative importance of each attribute for each individual by determining how much each attribute contributes to the overall utility of the choice. We first calculate the range of each
+
+```{r}
+#| echo: false
+
+individual_ranges_importance <- individual_part_worths |> 
+  group_by(id, feature) |> 
+  summarize(
+    range_text = glue::glue("{round(max(value), 2)} − {round(min(value), 2)}"),
+    range = diff(range(value))
+  ) |> 
+  mutate(pct_importance = range / sum(range)) |> 
+  ungroup()
+
+individual_ranges_importance |> 
+  filter(id == 4) |> 
+  arrange(feature) |> 
+  select(
+    Feature = feature, `max(β<sub>i</sub>) − min(β<sub>i</sub>)` = range_text, 
+    Range = range, Importance = pct_importance
+  ) |> 
+  janitor::adorn_totals(fill = "") |> 
+  tt() |> 
+  format_tt(j = 3, fn = scales::label_number(accuracy = 0.01)) |> 
+  format_tt(j = 4, fn = scales::label_percent(accuracy = 0.1)) |> 
+  style_tt(i = 4, line = "t") |> 
+  style_tt(
+    i = 1, j = 2, background = "yellow"
+  ) |> 
+  style_tt(
+    i = 2, j = 2, background = "lightblue"
+  ) |> 
+  style_tt(
+    i = 3, j = 2, background = "lightgreen"
+  )
+```
+
+```{r}
+#| echo: false
+
+individual_ranges_importance |> 
+  select(-range_text) |> 
+  filter(id %in% 4:8) |> 
+  pivot_wider(names_from = feature, values_from = c(range, pct_importance)) |> 
+  select(
+    ID = id, 
+    Price = range_Price, Packaging = range_Packaging, Flavor = range_Flavor,
+    `Price ` = pct_importance_Price, `Packaging ` = pct_importance_Packaging, 
+    `Flavor ` = pct_importance_Flavor
+  ) |> 
+  tt() |> 
+  group_tt(
+    j = list(
+      "Range" = 2:4,
+      "Importance" = 5:7
+    )
+  ) |> 
+  style_tt(
+    i = 1:5,
+    j = c(2, 5), line = "l"
+  ) |> 
+  format_tt(j = 5:7, fn = scales::label_percent(accuracy = 0.1)) |> 
+  format_tt(j = 2:4, fn = scales::label_number(accuracy = 0.01))
+```
+
+```{r}
+#| echo: false
+
+individual_ranges_importance |> 
+  group_by(feature) |> 
+  summarize(relative_importance = mean(pct_importance)) |> 
+  ungroup() |> 
+  mutate(feature = fct_reorder(feature, relative_importance)) |> 
+  mutate(pct_nice = scales::label_percent()(relative_importance)) |> 
+  ggplot(aes(x = relative_importance, y = feature)) +
+  geom_col(aes(fill = feature)) +
+  geom_text(aes(label = pct_nice), hjust = 1, nudge_x = -0.005) +
+  scale_x_continuous(labels = scales::label_percent()) +
+  guides(fill = "none")
+```
+
+
+```{r}
+#| echo: false
+
+individual_part_worths |> 
+  group_by(feature, level) |> 
+  summarize(avg = mean(value)) |> 
+  mutate(avg_shifted = avg - mean(avg)) |> 
+  group_by(feature) |> 
+  mutate(range = if_else(row_number() == 1, diff(range(avg_shifted)), 0)) |> 
+  ungroup() |> 
+  mutate(ratio = avg_shifted / sum(range)) |> 
+  ggplot(aes(x = ratio, y = fct_rev(level))) +
+  geom_col(aes(fill = feature)) + 
+  scale_x_continuous(labels = scales::label_percent()) +
+  guides(fill = "none") +
+  facet_col(vars(feature), scales = "free_y", space = "free")
+```
+
+
+```{r}
+cor.mlogit(model_mlogit_hierarchical) |> 
+  as_tibble(rownames = "coefficient") |> 
+  tt() |> 
+  format_tt(j = 2:5, fn = scales::label_number(accuracy = 0.001))
+```
+
+## Predictions and transformations
+
+### Willingness-to-pay?
+
+### Simulated choice shares
+
+Functions from @Feit:2019
+
+```{r}
+predict_mnl <- function(model, data) {
+  # Function for predicting shares from a multinomial logit model 
+  # model: mlogit object returned by mlogit()
+  # data: a data frame containing the set of designs for which you want to 
+  #       predict shares. Same format at the data used to estimate model. 
+  data.model <- model.matrix(update(model$formula, 0 ~ .), data = data)[ , -1]
+  utility <- data.model %*% model$coef
+  share <- exp(utility) / sum(exp(utility))
+  cbind(share, data)
+}
+
+predict_hier_mnl <- function(model, data, nresp =1000) { 
+  # Function to predict shares of a hierarchical multinomial logit model
+  # model: mlogit object returned by mlogit()
+  # data: a data frame containing the set of designs for which you want to
+  # predict shares. Same format at the data used to estimate model.
+  # Note that this code assumes all model parameters are random
+  data.model <- model.matrix(update(model$formula , 0 ~ .), data = data)[ , -1]
+  coef.Sigma <- cov.mlogit(model)
+  coef.mu <- model$coef[1:dim(coef.Sigma)[1]]
+  draws <- MASS::mvrnorm(n = nresp, coef.mu, coef.Sigma)
+  shares <- matrix(NA, nrow = nresp, ncol = nrow(data))
+
+  for (i in 1:nresp) {
+    utility <- data.model%*%draws[i,]
+    share <- exp(utility)/sum(exp(utility))
+    shares[i,] <- share 
+  }
+
+  cbind(colMeans(shares), data)
+}
+
+example_product_mix <- tribble(
+  ~price, ~packaging, ~flavor,
+  "$2", "Plastic + sticker", "Chocolate",
+  "$3", "Plastic + sticker", "Chocolate",
+  "$4", "Plastic + sticker", "Chocolate",
+  "$2", "Plastic + paper", "Nuts",
+  "$3", "Plastic + paper", "Nuts",
+  "$4", "Plastic + paper", "Nuts"
+) |> 
+  mutate(across(everything(), factor))
+
+predict_hier_mnl(model_mlogit_hierarchical, example_product_mix)
+```
+
+## Market simulations?

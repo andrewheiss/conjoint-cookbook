@@ -1,0 +1,197 @@
+# MMs and AMCEs with Bayesian multinomial logistic regression
+
+blah blah
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.height = 6 * 0.618,
+  fig.retina = 3,
+  dev = "ragg_png",
+  fig.align = "center",
+  out.width = "90%",
+  collapse = TRUE,
+  cache.extra = 1234  # Change number to invalidate cache
+)
+
+options(
+  digits = 4,
+  width = 300,
+  dplyr.summarise.inform = FALSE
+)
+```
+
+```{r}
+#| label: packages-data
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(brms)
+library(rstan)
+library(tidybayes)
+library(ggdist)
+library(marginaleffects)
+library(parameters)
+library(tinytable)
+library(scales)
+library(ggforce)
+
+stickers <- readRDS("data/processed_data/study_5_sticker.rds")
+```
+
+
+
+```{r create-choice-alt-column}
+stickers_choice_alt <- stickers |>
+  mutate(choice_alt = factor(alt * choice))
+
+stickers_choice_alt |>
+  select(resp_id, question, price, packaging, flavor, choice, choice_alt)
+```
+
+::: {.column-page-inset-right}
+
+$$
+\begin{aligned}
+&\ \textbf{Multinomial probability of selection of choice}_i \textbf{ in respondent}_j \\
+\text{Choice}_{i_j} \sim&\ \operatorname{Categorical}(\{\mu_{1,i_j}, \mu_{2,i_j}\}) \\[10pt]
+&\ \textbf{Model for probability of each option} \\
+\{\mu_{1,i_j}, \mu_{2,i_j}, \mu_{3,i_j}\} =&\ \beta_{0_j} + \beta_{1_j} \text{Price[\$3]}_{i_j} + \beta_{2_j} \text{Price[\$4]}_{i_j} + \\
+&\ \beta_{3_j} \text{Packaging[Plastic + sticker]}_{i_j} + \beta_{4_j} \text{Flavor[Nuts]}_{i_j} \\[20pt]  
+&\ \textbf{Respondent-specific slopes} \\
+\left(
+  \begin{array}{c} 
+    \begin{aligned}
+      &\beta_{0_j} \\
+      &\beta_{1_j} \\
+      &\beta_{2_j} \\
+      &\beta_{3_j} \\
+      &\beta_{4_j}
+    \end{aligned}
+  \end{array}
+\right) \sim&\ \operatorname{Multivariate}\ \mathcal{N} \left[
+\left(
+  \begin{array}{c} 
+    \begin{aligned}
+      &\gamma^{\beta_{0}}_{0} \\
+      &\gamma^{\beta_{1}}_{0} \\
+      &\gamma^{\beta_{2}}_{0} \\
+      &\gamma^{\beta_{3}}_{0} \\
+      &\gamma^{\beta_{4}}_{0}
+    \end{aligned}
+  \end{array}
+\right)
+, 
+\left(
+  \begin{array}{ccccc}
+     \sigma^2_{\beta_{0j}} & \rho_{\beta_{0j}\beta_{1j}} & \rho_{\beta_{0j}\beta_{2j}} & \rho_{\beta_{0j}\beta_{3j}} & \rho_{\beta_{0j}\beta_{4j}} \\ 
+     \dots & \sigma^2_{\beta_{1j}} & \rho_{\beta_{1j}\beta_{2j}} & \rho_{\beta_{1j}\beta_{3j}} & \rho_{\beta_{1j}\beta_{4j}} \\ 
+     \dots & \dots & \sigma^2_{\beta_{2j}} & \rho_{\beta_{2j}\beta_{3j}} & \rho_{\beta_{2j}\beta_{4j}} \\ 
+     \dots & \dots & \dots & \sigma^2_{\beta_{3j}} & \rho_{\beta_{3j}\beta_{4j}} \\ 
+     \dots & \dots & \dots & \dots & \sigma^2_{\beta_{4j}}
+  \end{array}
+\right)
+\right] \\[10pt]
+&\ \textbf{Priors} \\
+\beta_{0 \dots 4} \sim&\ \mathcal{N} (0, 3) \qquad\qquad\ [\text{Prior for choice-level coefficients}] \\
+\gamma^{\beta_{0 \dots 4}}_0 \sim&\ \mathcal{N} (0, 3) \qquad\qquad\ [\text{Prior for individual-level coefficients}] \\
+\sigma_{\beta_{0 \dots 4}} \sim&\ \operatorname{Exponential}(1) \qquad [\text{Prior for between-respondent intercept and slope variability}] \\
+\rho \sim&\ \operatorname{LKJ}(1) \qquad\qquad [\text{Prior for correlation between random slopes and intercepts}]
+\end{aligned}
+$$
+
+:::
+
+```{r model-minivans-categorical-brms}
+model_stickers_categorical_brms <- brm(
+  bf(choice_alt ~ 0 + price + packaging + flavor + (1 | ID | resp_id)),
+  data = stickers_choice_alt,
+  family = categorical(refcat = "0"),
+  prior = c(
+    prior(normal(0, 3), class = b, dpar = mu1),
+    prior(normal(0, 3), class = b, dpar = mu2),
+    prior(exponential(1), class = sd, dpar = mu1),
+    prior(exponential(1), class = sd, dpar = mu2)
+  ),
+  chains = 4, cores = 4, iter = 2000, seed = 1234,
+  backend = "cmdstanr", threads = threading(2),
+  file = "models/model_stickers_categorical_brms"
+)
+```
+
+```{r}
+model_parameters(model_stickers_categorical_brms)
+```
+
+```{r marginalize-cat-posterior-estimates}
+stickers_cat_marginalized <- model_stickers_categorical_brms |>
+  gather_draws(`^b_.*$`, regex = TRUE) |>
+  # Each variable name has "mu1", "mu2", etc. built in, like "b_mu1_seat6". This
+  # splits the .variable column into two parts based on a regular expression,
+  # creating one column for the mu part ("b_mu1_") and one for the rest of the
+  # variable name ("seat6")
+  separate_wider_regex(
+    .variable,
+    patterns = c(mu = "b_mu\\d_", .variable = ".*")
+  ) |>
+  # Find the average of the three mu estimates for each variable within each
+  # draw, or marginalize across the three options, since they're randomized
+  group_by(.variable, .draw) |>
+  summarize(.value = mean(.value)) 
+
+stickers_cat_marginalized |>
+  group_by(.variable) |>
+  median_qi()
+```
+
+```{r create-all-combos-minivans}
+newdata_all_combos <- stickers |> 
+  tidyr::expand(price, packaging, flavor) |> 
+  mutate(resp_id = 4)
+
+all_preds_brms <- model_stickers_categorical_brms |> 
+  epred_draws(newdata = newdata_all_combos) |> 
+  filter(.category == 0) |> 
+  mutate(.epred = 1 - .epred)
+```
+
+```{r preds-show-all-combos-minivans}
+all_preds_brms |> 
+  group_by(price, packaging, flavor) |> 
+  median_qi(.epred)
+```
+
+```{r show-draws-in-cargo}
+preds_packaging_marginalized <- all_preds_brms |> 
+  # Marginalize out the other covariates
+  group_by(packaging, .draw) |>
+  summarize(avg = mean(.epred))
+
+preds_packaging_marginalized |> 
+  group_by(packaging) |> 
+  median_qi()
+```
+
+```{r}
+preds_packaging_marginalized |> 
+  ggplot(aes(x = avg, y = packaging, fill = packaging)) +
+  stat_halfeye() +
+  geom_vline(xintercept = 0.5) +
+  scale_x_continuous(labels = label_percent()) +
+  guides(fill = "none")
+```
+
+```{r}
+preds_packaging_marginalized |>
+  compare_levels(variable = avg, by = packaging, comparison = "control") |> 
+  median_qi(avg)
+```
+
+```{r}
+preds_packaging_marginalized |>
+  compare_levels(variable = avg, by = packaging, comparison = "control") |> 
+  ggplot(aes(x = avg, y = packaging)) +
+  stat_halfeye() +
+  geom_vline(xintercept = 0)
+```

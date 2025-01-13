@@ -1,0 +1,53 @@
+project:
+  type: book
+  preview:
+    port: 7777
+  render: 
+    # Render all .qmd files
+    - "**/*.qmd"
+
+    # Don't render anything in the manuscript folder
+    - "!manuscript/"
+
+book:
+  title: "Interdisciplinary guide to conjoint analysis"
+  author:
+  - name: Andrew Heiss
+    orcid: 0000-0002-3948-3914
+  date: "2024-12-23"
+
+  repo-url: "https://github.com/andrewheiss/golden-gorilla"
+  repo-actions: [edit, issue]
+
+  page-navigation: true
+
+  chapters:
+    - part: "Introduction"
+      chapters:
+        - index.qmd
+    - part: "Dealing with data"
+      chapters:
+        - process-reshape-data.qmd
+    - part: "Estimands"
+      chapters:
+        - mms-amces.qmd
+        - utils-preds.qmd
+    - part: "Causal effects"
+      chapters: 
+        - mms-amces-ols.qmd
+        - mms-amces-multinomial.qmd
+        - mms-amces-bayes.qmd
+    - part: "Preferences"
+      chapters:
+        - utils-preds-freq.qmd
+        - utils-preds-bayes.qmd
+    - part: "Final things"
+      chapters:
+        - index.qmd
+
+format:
+  html:
+    html:
+    theme:
+      - zephyr
+      - html/custom.scss

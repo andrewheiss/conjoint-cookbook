@@ -2,3 +2,15 @@
 .Rhistory
 .RData
 .Ruserdata
+
+/.quarto/
+
+# Output
+_book
+
+# Ignore data for now
+data/processed_data/*
+data/raw_data/*
+
+# Ignore models for now
+models/*

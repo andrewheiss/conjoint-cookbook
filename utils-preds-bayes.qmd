@@ -1,0 +1,322 @@
+# Utilities and predictions with Bayesian multinomial regression
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.height = 6 * 0.618,
+  fig.retina = 3,
+  dev = "ragg_png",
+  fig.align = "center",
+  out.width = "90%",
+  collapse = TRUE,
+  cache.extra = 1234  # Change number to invalidate cache
+)
+
+options(
+  digits = 4,
+  width = 300,
+  dplyr.summarise.inform = FALSE
+)
+```
+
+```{r}
+#| label: packages-data
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(brms)
+library(rstan)
+library(tidybayes)
+library(ggdist)
+library(marginaleffects)
+library(parameters)
+library(tinytable)
+library(scales)
+library(ggforce)
+
+stickers <- readRDS("data/processed_data/study_5_sticker.rds")
+```
+
+```{r create-choice-alt-column}
+stickers_choice_alt <- stickers |>
+  mutate(choice_alt = factor(alt * choice))
+
+stickers_choice_alt |>
+  select(resp_id, question, price, packaging, flavor, choice, choice_alt)
+```
+
+## Model
+
+```{r}
+model_stickers_mega_mlm_brms <- brm(
+  bf(choice_alt ~
+    # Choice-level predictors that are nested within respondents...
+    (price + packaging + flavor) +
+    # ... with random respondent-specific slopes for the
+    # nested choice-level predictors
+    (1 + price + packaging + flavor | ID | resp_id)),
+  data = stickers_choice_alt,
+  family = categorical(refcat = "0"),
+  prior = c(
+    prior(normal(0, 3), class = b, dpar = mu1),
+    prior(normal(0, 3), class = b, dpar = mu2),
+    prior(exponential(1), class = sd, dpar = mu1),
+    prior(exponential(1), class = sd, dpar = mu2),
+    prior(lkj(1), class = cor)
+  ),
+  chains = 4, cores = 4, warmup = 1000, iter = 5000, seed = 1234,
+  backend = "cmdstanr", threads = threading(2), # refresh = 0,
+  control = list(adapt_delta = 0.9),
+  file = "models/model_stickers_mega_mlm_brms"
+)
+```
+
+
+## Part-worth utilities and ratios
+
+### Model βs
+
+The coefficients from the model 
+
+```{r}
+stickers_cat_marginalized <- model_stickers_mega_mlm_brms %>% 
+  gather_draws(`b_.*`, regex = TRUE) %>% 
+  # Each variable name has "mu1", "mu2", etc. built in, like "b_mu1_flavorNuts". This
+  # splits the .variable column into two parts based on a regular expression,
+  # creating one column for the mu part ("b_mu1_") and one for the rest of the
+  # variable name ("flavorNuts")
+  separate_wider_regex(
+    .variable,
+    patterns = c(mu = "b_mu\\d_", .variable = ".*")
+  ) %>% 
+  # Find the average of the two mu estimates for each variable within each
+  # draw, or marginalize across the two options, since they're randomized
+  group_by(.variable, .draw, .chain, .iteration) %>% 
+  summarize(.value = mean(.value)) 
+
+stickers_cat_marginalized |> 
+  filter(.variable != "Intercept") |> 
+  ggplot(aes(x = .value, y = .variable)) +
+  stat_halfeye() +
+  geom_vline(xintercept = 0)
+```
+
+```{r}
+stickers_cat_marginalized |> 
+  group_by(.variable) |> 
+  median_hdi(.value)
+```
+
+### Individual part-worths
+
+```{r}
+population_effects <- stickers_cat_marginalized |> 
+  rename(value_population = .value)
+
+population_effects
+```
+
+```{r}
+#| eval: false
+individual_effects <- model_stickers_mega_mlm_brms |>
+  gather_draws(`r_.*`[resp_id,term], regex = TRUE) |> 
+  separate_wider_regex(
+    .variable,
+    patterns = c(mu = "r_resp_id__mu", .variable = "\\d")
+  ) |> 
+  group_by(resp_id, term, .chain, .iteration, .draw) |> 
+  summarize(.value = mean(.value)) 
+```
+
+```{r}
+#| include: false
+if (file.exists("models/individual_effects.rds")) {
+  individual_effects <- readRDS("models/individual_effects.rds")
+} else {
+  individual_effects <- model_stickers_mega_mlm_brms |>
+    gather_draws(`r_.*`[resp_id,term], regex = TRUE) |> 
+    separate_wider_regex(
+      .variable,
+      patterns = c(mu = "r_resp_id__mu", .variable = "\\d")
+    ) |> 
+    group_by(resp_id, term, .chain, .iteration, .draw) |> 
+    summarize(.value = mean(.value)) 
+  saveRDS(individual_effects, "models/individual_effects.rds")
+}
+```
+
+```{r}
+combined <- individual_effects |> 
+  rename(.variable = term, value_individual = .value) |> 
+  left_join(population_effects, by = join_by(.variable, .chain, .iteration, .draw)) |> 
+  ungroup() |> 
+  filter(.variable != "Intercept") |> 
+  mutate(utility = value_individual + value_population)
+```
+
+```{r}
+part_worths_posterior <- combined |> 
+  group_by(resp_id, .variable) |> 
+  mean_hdi(utility) |> 
+  select(resp_id, .variable, utility) |> 
+  bind_rows(expand_grid(
+    utility = 0, 
+    .variable = c("flavorChocolate", "packagingPackagingPpaper", "price$2"), 
+    resp_id = unique(combined$resp_id)
+  )) |> 
+  mutate(feature = case_when(
+    str_starts(.variable, "price") ~ "Price",
+    str_starts(.variable, "packaging") ~ "Packaging",
+    str_starts(.variable, "flavor") ~ "Flavor"
+  )) |> 
+  mutate(.variable = str_remove_all(.variable, "^price|^packaging|^flavor"))
+```
+
+Individual utilty part-worths:
+
+```{r}
+part_worths_posterior |> 
+  pivot_wider(names_from = c(feature, .variable), values_from = utility) |> 
+  slice(1:5) |> 
+  select(
+    ID = resp_id, `$2` = `Price_$2`, `$3` = `Price_$3`, `$4` = `Price_$4`,
+    Paper = Packaging_PackagingPpaper, Sticker = Packaging_PlasticPsticker,
+    Chocolate = Flavor_Chocolate, Nuts = Flavor_Nuts
+  ) |> 
+  tt() |> 
+  format_tt(j = 2:8, digits = 2, num_zero = TRUE, num_fmt = "significant") |> 
+  group_tt(
+    j = list(
+      "Price" = 2:4,
+      "Packaging" = 5:6,
+      "Flavor" = 7:8
+    )
+  ) |> 
+  style_tt(
+    i = 1:5,
+    j = c(2, 5, 7), line = "l"
+  ) |> 
+  style_tt(
+    i = 1, background = "yellow"
+  )
+```
+
+For respondent 4, the difference in preference when moving from \$2 to \$4 is roughly the same as the preference for a sticker
+
+We can also calculate the relative importance of each attribute for each individual by determining how much each attribute contributes to the overall utility of the choice. We first calculate the range of each 
+
+```{r}
+part_worths_posterior |> 
+  filter(resp_id == 4) |> 
+  arrange(.variable) |> 
+  group_by(resp_id, feature) |> 
+  summarize(
+    range_text = glue::glue("{round(max(utility), 2)} − {round(min(utility), 2)}"),
+    range = diff(range(utility))) |> 
+  mutate(pct_importance = range / sum(range)) |> 
+  ungroup() |> 
+  arrange(desc(feature)) |> 
+  janitor::adorn_totals() |> 
+  tt() |> 
+  format_tt(digits = 3, num_zero = TRUE, num_fmt = "significant") |> 
+  format_tt(j = 5, fn = scales::label_percent(accuracy = 0.1))
+```
+
+
+
+```{r}
+#| eval: false
+pref_ranges_posterior <- combined |> 
+  mutate(feature = case_when(
+    str_starts(.variable, "price") ~ "Price",
+    str_starts(.variable, "packaging") ~ "Packaging",
+    str_starts(.variable, "flavor") ~ "Flavor"
+  )) |> 
+  mutate(.variable = str_remove_all(.variable, "^price|^packaging|^flavor")) |> 
+  group_by(resp_id, feature, .draw) |> 
+  summarize(range = diff(range(c(0, utility)))) |> 
+  group_by(resp_id, .draw) |> 
+  mutate(pct_importance = range / sum(range))
+```
+
+```{r}
+#| include: false
+if (file.exists("models/pref_ranges_posterior.rds")) {
+  pref_ranges_posterior <- readRDS("models/pref_ranges_posterior.rds")
+} else {
+  pref_ranges_posterior <- combined |> 
+    mutate(feature = case_when(
+      str_starts(.variable, "price") ~ "Price",
+      str_starts(.variable, "packaging") ~ "Packaging",
+      str_starts(.variable, "flavor") ~ "Flavor"
+    )) |> 
+    mutate(.variable = str_remove_all(.variable, "^price|^packaging|^flavor")) |> 
+    group_by(resp_id, feature, .draw) |> 
+    summarize(range = diff(range(c(0, utility)))) |> 
+    group_by(resp_id, .draw) |> 
+    mutate(pct_importance = range / sum(range))
+  saveRDS(pref_ranges_posterior, "models/pref_ranges_posterior.rds")
+}
+```
+
+```{r}
+asdf <- pref_ranges_posterior |> 
+  group_by(resp_id, feature) |> 
+  summarize(
+    range = mean(range),
+    relative_importance = mean(pct_importance)
+  ) |> 
+  filter(resp_id %in% 4:8) |> 
+  pivot_wider(names_from = feature, values_from = c(range, relative_importance))
+
+asdf |> 
+  setNames(c("ID", "Flavor", "Packaging", "Price", "Flavor", "Packaging", "Price")) |> 
+  tt() |> 
+  format_tt(j = 2:4, digits = 2, num_zero = TRUE, num_fmt = "significant") |> 
+  group_tt(
+    j = list(
+      "Range" = 2:4,
+      "Importance" = 5:7
+    )
+  ) |> 
+  style_tt(
+    i = 1:5,
+    j = c(2, 5), line = "l"
+  ) |> 
+  format_tt(j = 5:7, fn = scales::label_percent(accuracy = 0.1))
+```
+
+Finally, we can aggregate these individual importance ratios into overall averages:
+
+```{r}
+pref_ranges_posterior |> 
+  group_by(feature, .draw) |> 
+  summarize(relative_importance = mean(pct_importance)) |> 
+  median_hdi(relative_importance)
+```
+
+```{r}
+pref_ranges_posterior |> 
+  group_by(feature, .draw) |> 
+  summarize(relative_importance = mean(pct_importance)) |> 
+  ungroup() |> 
+  mutate(feature = fct_reorder(feature, relative_importance)) |> 
+  ggplot(aes(x = relative_importance, y = feature)) +
+  stat_ccdfinterval(aes(fill = feature)) +
+  # stat_ccdfinterval(aes(fill = feature, slab_alpha = after_stat(f)),
+  #   thickness = 1, fill_type = "gradient"
+  # ) +
+  expand_limits(x = 0) +
+  scale_x_continuous(labels = scales::label_percent()) +
+  guides(fill = "none")
+```
+
+## Predictions and transformations
+
+### Willingness-to-pay
+
+### Simulated choice shares
+
+
+## Market simulations?

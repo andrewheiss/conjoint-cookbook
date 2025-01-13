@@ -1,0 +1,88 @@
+# Process, clean, and reshape data
+
+```{r}
+#| label: packages-data
+#| warning: false
+#| message: false
+
+library(tidyverse)
+```
+
+Popular conjoint survey platforms like Qualtrics and Sawtooth typically provide results data in two separate data files: (1) individual participant-level responses and (2) a bank of possible alternative-level combinations of features. To analyze the results of a conjoint experiment, the two datasets need to be joined.
+
+## Individual-level responses
+
+```{r}
+responses <- readRDS(here::here("data", "processed_data", "responses_illustration.rds"))
+responses
+```
+
+
+## Possible alternatives
+
+```{r}
+alternatives <- readRDS(here::here("data", "processed_data", "alternatives_illustration.rds"))
+alternatives
+```
+
+```{r}
+alternatives |> 
+  summarize(
+    versions = n_distinct(version),
+    questions = n_distinct(question),
+    alts = n_distinct(alt)
+  )
+```
+
+## Pivoting and expanding
+
+The original responses data is wide, with a column for each of the 12 choices. We first need to make it long, with a row for each respondent-choice
+
+```{r}
+responses_long <- responses |> 
+  pivot_longer(
+    cols = starts_with("CBC_Random"),
+    names_to = "question_raw",
+    values_to = "chosen_alt"
+  ) %>%
+  # The task number is embedded in text, like "CBC_Random6"; this extracts it
+  mutate(question = as.numeric(str_extract(question_raw, "\\d+"))) %>%
+  select(-question_raw)
+responses_long
+```
+
+```{r}
+responses_long |> 
+  summarize(
+    resp_ids = n_distinct(resp_id),
+    questions = n_distinct(question)
+  )
+```
+
+```{r}
+responses_long_expanded <- responses_long |>
+  expand(resp_id, question, alt = 1:2) |> 
+  left_join(responses_long, by = join_by(resp_id, question))
+responses_long_expanded
+```
+
+```{r}
+responses_long_expanded |> 
+  summarize(
+    resp_ids = n_distinct(resp_id),
+    questions = n_distinct(question),
+    alts = n_distinct(alt)
+  )
+```
+
+## Final data
+
+```{r}
+combined <- responses_long_expanded |> 
+  left_join(alternatives, by = join_by(resp_id == version, question, alt)) |> 
+  mutate(choice = as.numeric(alt == chosen_alt))
+```
+
+```{r}
+nrow(combined) / 2 / 12
+```

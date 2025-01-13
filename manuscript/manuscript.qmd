@@ -1,0 +1,43 @@
+---
+title: Manuscript
+---
+
+# Introduction
+
+Context - 
+
+The idea of conjoint measurement was first applied to social scienctific research by mathematical psychologists like R. Duncan Luce and Amos Tversky (https://cpb-us-w2.wpmucdn.com/web.sas.upenn.edu/dist/f/49/files/2019/09/handbook-draft-07-09202019-1.pdf), who argued that "complex phenomena" could be decomposed into their component factors through mathematical and statistical methods.
+
+This "conjoint" term eventually converged on the idea of suvey experiments designed to measure (1) respondents' overall preferences for a constrained set of choices, and (2) the causal effect of specific choice attributes on the probability of selecting a given alternative.
+
+Conjoint experimental designs became popular in marketing reserach in the 1970s, focused on consumer preferences and other social science disciplines have since adopted the approach. The method is particularly popular in political science
+
+Prior to 2014, conjoint reserach was focused primarily on measuring respondent preferences, but HainmuellerHopkinsYamamoto:2014 expanded the method to allow for explicit causal estimands. 
+
+# Use in psychology
+
+Due to the method's popularity in political science, mostly psychology-related research using conjoint designs deals with the subfield of political pyschology
+
+Though the method has been used elsewhere in pscyhology - evaluation of parent preferences for ADHD medication for their kids (https://pubmed.ncbi.nlm.nih.gov/21722027/), parent preferences for mental health interventions for their kids (https://link.springer.com/article/10.1007/s10802-008-9238-4 and https://psychiatryonline.org/doi/full/10.1176/appi.ps.201400306), teacher preferences for anti-bullying programs (https://link.springer.com/article/10.1007/s10802-009-9324-2)
+
+These experiments tend to be focused on preferences, similar to marketing, not causal questions
+
+
+
+# How conjoint experminents work
+
+Discrete choice - lots of different flavors
+
+# Estimands: What quantities of interest can you find with conjoint designs?
+
+- Marginal means
+- AMCEs
+- Fancier AMCEs
+
+# Calculating these in R
+
+svyglm/cregg
+
+mlogit / nnet::multinom
+
+Bayesian hierarchical models - popular Sawtooth software does this, but also possible with R
