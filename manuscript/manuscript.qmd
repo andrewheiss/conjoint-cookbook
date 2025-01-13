@@ -18,10 +18,23 @@ Prior to 2014, conjoint reserach was focused primarily on measuring respondent p
 
 Due to the method's popularity in political science, mostly psychology-related research using conjoint designs deals with the subfield of political pyschology
 
+https://doi.org/10.1016/j.evolhumbehav.2019.04.001
+https://guilfordjournals.com/doi/abs/10.1521/soco.2009.27.1.128
+
+https://osf.io/preprints/psyarxiv/cgqzw
+https://osf.io/preprints/psyarxiv/856z9
+https://osf.io/preprints/psyarxiv/4y8ap
+https://osf.io/preprints/psyarxiv/n3je2 + https://www.journals.uchicago.edu/doi/suppl/10.1086/710014
+https://journals.sagepub.com/doi/abs/10.1177/1532673X211053211
+https://journals.sagepub.com/doi/10.1177/2053168019832230
+
 Though the method has been used elsewhere in pscyhology - evaluation of parent preferences for ADHD medication for their kids (https://pubmed.ncbi.nlm.nih.gov/21722027/), parent preferences for mental health interventions for their kids (https://link.springer.com/article/10.1007/s10802-008-9238-4 and https://psychiatryonline.org/doi/full/10.1176/appi.ps.201400306), teacher preferences for anti-bullying programs (https://link.springer.com/article/10.1007/s10802-009-9324-2)
 
 These experiments tend to be focused on preferences, similar to marketing, not causal questions
 
+
+
+Example data: https://doi.org/10.1093/jcr/ucad008
 
 
 # How conjoint experminents work
