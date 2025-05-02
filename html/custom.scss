@@ -1,58 +1,108 @@
-// @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap');
+@import"https://fonts.bunny.net/css?family=libre-franklin:400i,700i,400,700|dm-serif-display:400i,700i,400,700|dm-serif:400i,700i,400,700";
+
 
 /*-- scss:defaults --*/
-// $font-family-sans-serif: Inter, sans-serif !default;
+$white:      #fff !default;
+$gray-100: #f8f9fa !default;
+$gray-200: #e9ecef !default;
+$gray-300:   #ddd !default;
+$gray-400: #ced4da !default;
+$gray-500: #adb5bd !default;
+$gray-600: #868e96 !default;
+$gray-700: #495057 !default;
+$gray-800: #343a40 !default;
+$gray-900: #212529 !default;
+$black:      #000 !default;
 
-// $white: #fff !default;
-// $gray-100: #f8f9fa !default;
-// $gray-200: #e9ecef !default;
-// $gray-300: #ddd !default;
-// $gray-400: #ced4da !default;
-// $gray-500: #adb5bd !default;
-// $gray-600: #868e96 !default;
-// $gray-700: #495057 !default;
-// $gray-800: #343a40 !default;
-// $gray-900: #212529 !default;
-// $black: #000 !default;
+$blue:     #0076d6 !default;
+$indigo:   #676cc8 !default;
+$purple:   #8168b3 !default;
+$pink:     #d72d79 !default;
+$red:      #e52207 !default;
+$orange:   #e66f0e !default;
+$yellow:   #fee685 !default;
+$green:    #538200 !default;
+$teal:     #04c585 !default;
+$cyan:     #009ec1 !default;
 
-// $primary: #d8249c !default;
-// $secondary: #6621B9 !default;
-// $success: #768567 !default;
-// $info: #221622 !default;
-// $warning: #f3752f !default;
-// $danger: #f44336 !default;
-// $light: $gray-100 !default;
-// $dark: $gray-800 !default;
+$primary:      $blue !default;
+$secondary:    $purple !default;
+$success:      $green !default;
+$info:         $teal !default;
+$warning:      $orange !default;
+$danger:       $red !default;
+$light:        $gray-100 !default;
+$dark:         $gray-800 !default;
+
+
+$font-family-sans-serif: Libre Franklin, sans-serif !default;
+$font-family-serif: DM Serif Display, serif !default;
+$font-family-serif-regular: DM Serif, serif !default;
+
+$font-size-base: 1.05rem !default;
+
+$headings-font-family: $font-family-serif;
+$display-font-family: $font-family-serif;
+$headings-font-weight: 700 !default;
+
+$h1-font-size: $font-size-base * 2.45;
+$h2-font-size: $font-size-base * 1.85;
+$h3-font-size: $font-size-base * 1.5;
+$h4-font-size: $font-size-base * 1.2;
+$h5-font-size: $font-size-base * 1;
+$h6-font-size: $font-size-base * 0.8;
+
+$toc-font-size: 0.9rem;
+$sidebar-font-size: 0.9rem;
+$sidebar-font-size-section: 0.9rem;
+$footer-font-size: 0.9rem;
+
+$link-color: $orange;
+$link-hover-color: $red;
+
 
 /*-- scss:rules --*/
+.subtitle {
+    font-family: $font-family-serif-regular;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 1.6rem;
+    line-height: 1.3;
+    color: $gray-600;
+}
 
 .tab-content.quarto-iframe {
-  height: 500px;
+    height: 500px;
 }
 
 .sidebar-item .text-start .menu-text,
-.sidebar nav[role=doc-toc] > h2, .sidebar nav[role=doc-toc] > .h2 {
-  font-family: "DM Serif Display";
-  font-weight: bold;
-  font-size: 1.1rem;
+.sidebar nav[role=doc-toc]>h2,
+.sidebar nav[role=doc-toc]>.h2 {
+    font-family: $font-family-serif;
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: $gray-600;
+}
+
+.header-section-number, .chapter-number {
+    color: $gray-500;
 }
 
 thead th {
-  text-transform: none;
+    text-transform: none;
 }
 
-// Remove margin on pre in output
-.cell-output-stdout pre {
-  margin-bottom: 0;
-}
+// Format output kind of like code, but just with a border
+.cell-output-stdout {
+    margin: 0 0 1em;
+    border: none;
+    padding: .4em;
+    // background-color: rgba(233, 236, 239, 0);
+    border: 1px solid rgba(233, 236, 239, .8);
+    border-radius: .25rem;
 
-// Format output and plain text blocks like code
-.cell-output-stdout, pre.text {
-  margin: 0 0 1em;
-  border: none;
-  padding: .4em;
-  background-color: rgba(233,236,239,.65);
-  border: 1px solid rgba(233,236,239,.65);
-  border-radius: .25rem;
-  color: #5e5e5e;
+    pre {
+        color: #383a42;
+        margin-bottom: 0;
+    }
 }

@@ -17,7 +17,7 @@ book:
   date: "2024-12-23"
 
   repo-url: "https://github.com/andrewheiss/golden-gorilla"
-  repo-actions: [edit, issue]
+  repo-actions: [source, issue]
 
   page-navigation: true
 
@@ -48,7 +48,7 @@ book:
 format:
   html:
     toc-title: On this page
+    highlight-style: atom-one
     theme:
       - zephyr
-      - brand
       - html/custom.scss
