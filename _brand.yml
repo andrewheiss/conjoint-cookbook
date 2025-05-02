@@ -1,0 +1,67 @@
+color:
+  palette:
+    blue: "#0076d6"
+    indigo: "#676cc8"
+    purple: "#8168b3"
+    pink: "#d72d79"
+    red: "#e52207"
+    orange: "#e66f0e"
+    yellow: "#fee685"
+    green: "#538200"
+    teal: "#04c585"
+    cyan: "#009ec1"
+    white: "#fff"
+    gray-100: "#f8f9fa"
+    gray-200: "#e9ecef"
+    gray-300: "#ddd"
+    gray-400: "#ced4da"
+    gray-500: "#adb5bd"
+    gray-600: "#868e96"
+    gray-700: "#495057"
+    gray-800: "#343a40"
+    gray-900: "#212529"
+    black: "#000"
+
+  background: white
+  foreground: gray-900
+  primary: blue
+  secondary: purple
+  tertiary: gray-400
+  success: green
+  info: teal
+  warning: orange
+  danger: red
+  light: white
+  dark: gray-800
+
+# logo: 
+#   medium: logo.png
+
+typography:
+  fonts:
+    - family: Inter
+      source: bunny
+    - family: DM Serif Display
+      source: bunny
+  base: Inter
+  headings: DM Serif Display
+
+defaults: 
+  bootstrap: 
+    defaults: 
+      link-color: purple
+      link-hover-color: orange
+      font-size-base: 0.95rem
+      headings-font-weight: 700
+
+      # h1-font-size: font-size-base * 2.45
+      # h2-font-size: font-size-base * 1.85
+      # h3-font-size: font-size-base * 1.5
+      # h4-font-size: font-size-base * 1.2
+      # h5-font-size: font-size-base * 1
+      # h6-font-size: font-size-base * 0.8
+
+      toc-font-size: 0.85rem
+      sidebar-font-size: 0.9rem
+      sidebar-font-size-section: 0.85rem
+      footer-font-size: 0.9rem

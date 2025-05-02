@@ -47,7 +47,8 @@ book:
 
 format:
   html:
-    html:
+    toc-title: On this page
     theme:
       - zephyr
+      - brand
       - html/custom.scss
