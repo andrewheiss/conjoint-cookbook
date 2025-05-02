@@ -9,6 +9,9 @@ project:
     # Don't render anything in the manuscript folder
     - "!manuscript/"
 
+execute:
+  freeze: auto
+
 book:
   title: "Interdisciplinary guide to conjoint analysis"
   author:
