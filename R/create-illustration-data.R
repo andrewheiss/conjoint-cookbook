@@ -35,7 +35,8 @@ alternatives <- read_csv(
     flavor = factor(flavor)
   ) |> 
   rename(version = Version, question = Task, alt = Concept) |> 
-  select(-starts_with("Att "))
+  select(-starts_with("Att ")) |> 
+  filter(version %in% responses$resp_id)
 
 saveRDS(responses, here::here("data", "processed_data", "responses_illustration.rds"))
 saveRDS(alternatives, here::here("data", "processed_data", "alternatives_illustration.rds"))
