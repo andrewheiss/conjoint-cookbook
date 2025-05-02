@@ -8,3 +8,19 @@ include-after-body:
     }
     </style>
 ---
+
+Conjoint levels and features
+
+| Features/Attributes | Levels                             |
+|---------------------|------------------------------------|
+| Price               | \$2, \$3, \$4                      |
+| Packaging           | Plastic + paper, Plastic + sticker |
+| Flavor              | Nuts, Chocolate                    |
+
+Example conjoint task
+
+|  |  |  |
+|----|----|----|
+| Price | \$3 | \$4 |
+| Packaging | ![Plastic + paper](img/Study%205%20-%20Images%20used%20in%20conjoint%20plasticpaper.png) | ![Plastic + sticker](img/Study%205%20-%20Images%20used%20in%20conjoint%20plastic%20%20sticker.png) |
+| Flavor | Chocolate chips | Nuts |
