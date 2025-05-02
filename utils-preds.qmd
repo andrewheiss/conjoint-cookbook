@@ -1,4 +1,7 @@
-# Preferences: Utilities, predictions, and simulations
+---
+title: "Preferences"
+subtitle: "Utilities, predictions, and simulations"
+---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(

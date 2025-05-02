@@ -1,1 +1,4 @@
-# Causal effects: marginal means (MMs) and average marginal component effects (AMCEs)
+---
+title: "Causal effects"
+subtitle: "Marginal means (MMs) and average marginal component effects (AMCEs)"
+---
