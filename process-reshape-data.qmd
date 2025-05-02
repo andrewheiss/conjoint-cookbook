@@ -1,16 +1,22 @@
 # Process, clean, and reshape data
 
+Popular conjoint survey platforms like Qualtrics and Sawtooth typically provide results data in two separate data files: (1) individual participant-level responses and (2) alternative-level combinations of features that each respondent saw. To analyze the results of a conjoint experiment using regression, the two datasets need to be joined.
+
 ```{r}
 #| label: packages-data
 #| warning: false
 #| message: false
 
 library(tidyverse)
+library(tinytable)
 ```
 
-Popular conjoint survey platforms like Qualtrics and Sawtooth typically provide results data in two separate data files: (1) individual participant-level responses and (2) a bank of possible alternative-level combinations of features. To analyze the results of a conjoint experiment, the two datasets need to be joined.
 
 ## Individual-level responses
+
+With individual-level responses, each row represents a survey respondent and each column represents a survey question presented to the respondent. If the survey included general questions about the respondent's demographics, education, income, or any other question, those responses appear here. This data also includes a column for each conjoint task presented to the respondent indicating which of the alternatives was selected.
+
+For instance, in this example data, researchers collected data on respondent gender and age before asking a series of 12 conjoint tasks. The data thus has columns for `gender` and `age` (respondent-level characteristics), and `CBC_Random{N}` (the choices selected during each conjoint task):
 
 ```{r}
 responses <- readRDS(here::here("data", "processed_data", "responses_illustration.rds"))
@@ -20,10 +26,16 @@ responses
 
 ## Possible alternatives
 
+In this example, the `CBC_Random{N}` columns show which of the two alternatives were selected in each task. However, they do not provide the complete context of the experimental task, like which combinations of levels were displayed with each feature. This information is crucial for conjoint analysis, since we are trying to statistically detect the salience of specific levels and features. 
+
+Alternative-level data provides this context. In this data, each row represents one of the choices presented to a respondent, with a column for each feature and the alternative shown and a column linking the row to the respondent ID (`version` in this example; the exact name of the column varies across survey platforms). Some survey platforms include a column indicating which choice was selected; this example data does not and instead includes it in `responses`.
+
 ```{r}
 alternatives <- readRDS(here::here("data", "processed_data", "alternatives_illustration.rds"))
 alternatives
 ```
+
+Since there are 2 alternatives presented in each conjoint question, and there are 12 questions or tasks, each respondent has 24 associated rows. With `{r} nrow(responses)` respondents, the `alternatives` data thus contains `{r} nrow(responses)` × 12 × 2, or `{r} scales::label_comma()(nrow(responses) * 12 * 2)` rows:
 
 ```{r}
 alternatives |> 
@@ -32,11 +44,92 @@ alternatives |>
     questions = n_distinct(question),
     alts = n_distinct(alt)
   )
+
+nrow(alternatives)
 ```
 
-## Pivoting and expanding
+To illustrate, this data shows that respondent 4 (a 19-year-old female, as seen in `responses`) saw this question in the first task (`question == 1`):
 
-The original responses data is wide, with a column for each of the 12 choices. We first need to make it long, with a row for each respondent-choice
+```{r}
+#| echo: false
+#| tbl-cap: First conjoint task presented to respondent 4
+
+example_4_1 <- alternatives |> 
+  filter(version == 4, question == 1) |> 
+  select(-version, -question) |> 
+  pivot_longer(cols = c(price, packaging, flavor)) |> 
+  mutate(
+    alt = paste0("Alternative ", alt),
+    name = str_to_sentence(name)
+  ) |> 
+  pivot_wider(names_from = alt, values_from = value)
+
+example_4_1 |> 
+  rename(` ` = name) |> 
+  tt() |> 
+  style_tt(j = 2:3, align = "c") |> 
+  style_tt(j = 1, bold = TRUE)
+```
+
+…and she saw this question in the third task (`question == 3`):
+
+```{r}
+#| echo: false
+#| tbl-cap: Third conjoint task presented to respondent 4
+
+example_4_3 <- alternatives |> 
+  filter(version == 4, question == 3) |> 
+  select(-version, -question) |> 
+  pivot_longer(cols = c(price, packaging, flavor)) |> 
+  mutate(
+    alt = paste0("Alternative ", alt),
+    name = str_to_sentence(name)
+  ) |> 
+  pivot_wider(names_from = alt, values_from = value)
+
+example_4_3 |> 
+  rename(` ` = name) |> 
+  tt() |>
+  style_tt(j = 2:3, align = "c") |> 
+  style_tt(j = 1, bold = TRUE)
+```
+
+…and so on for 12 total tasks.
+
+From the respondent-level data, we know which alternative she chose: in the first question, she selected the first column (since `responses$CBC_Random1 == 1`)
+
+```{r}
+#| echo: false
+#| tbl-cap: First conjoint task presented to respondent 4 with selected alternative highlighted
+
+example_4_1 |> 
+  rename(` ` = name) |> 
+  tt() |> 
+  style_tt(j = 2:3, align = "c") |> 
+  style_tt(j = 1, bold = TRUE) |> 
+  style_tt(j = 2, background = "yellow")
+```
+
+…and in the third question she also selected the first column (since `responses$CBC_Random3 == 1`).
+
+```{r}
+#| echo: false
+#| tbl-cap: Third conjoint task presented to respondent 4 with selected alternative highlighted
+
+example_4_3 |> 
+  rename(` ` = name) |> 
+  tt() |> 
+  style_tt(j = 2:3, align = "c") |> 
+  style_tt(j = 1, bold = TRUE) |> 
+  style_tt(j = 2, background = "yellow")
+```
+
+
+## Pivoting, expanding, and combining
+
+In order to analyze this data with regression, we need to combine it into one long dataset, with a row for each respondent-choice.
+
+First, we take the wide `responses` data and pivot it longer so that there is a row per question per respondent (or `{r} nrow(responses)` × 12, or `{r} scales::label_comma()(nrow(responses) * 12)` rows):
 
 ```{r}
 responses_long <- responses |> 
@@ -59,6 +152,8 @@ responses_long |>
   )
 ```
 
+Next, we expand the long data so that there are rows for each of the two choices within each question, resulting in `{r} nrow(responses)` × 12 × 2, or `{r} scales::label_comma()(nrow(responses) * 12 * 2)` rows, matching the `alternatives` data:
+
 ```{r}
 responses_long_expanded <- responses_long |>
   expand(resp_id, question, alt = 1:2) |> 
@@ -75,14 +170,11 @@ responses_long_expanded |>
   )
 ```
 
-## Final data
+Finally, we join the alternative-level data to the long respondent-level data. We now have respondent-level characteristics *and* alternative-level characteristics in the same long data:
 
 ```{r}
 combined <- responses_long_expanded |> 
   left_join(alternatives, by = join_by(resp_id == version, question, alt)) |> 
   mutate(choice = as.numeric(alt == chosen_alt))
-```
-
-```{r}
-nrow(combined) / 2 / 12
+combined
 ```
