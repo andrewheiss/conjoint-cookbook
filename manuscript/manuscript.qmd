@@ -1,5 +1,7 @@
 ---
 title: Manuscript
+abstract: |
+  While conjoint analysis has become a popular social science tool for studying both experimental causal effects and multidimensional respondent preferences, researchers across disciplines rely on different analytical approaches and statistical philosophies. This paper serves as a tutorial for analyzing conjoint survey experiments in order to (1) estimate the causal average marginal component effects (AMCEs) of specific experimental conjoint features, and (2) model and explore heterogenous respondent preferences for possible features. Using real data from an openly available experiment on consumer preferences for environmental friendly packaging, I provide a step-by-step guide to calculating and interpreting these different estimands both with classical frequentist methods and with hierarchical or multilevel Bayesian models, demonstrating how combining these approaches can yield richer insights into both causal effects and preference structures.
 ---
 
 # Introduction
