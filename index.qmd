@@ -17,10 +17,17 @@ Conjoint levels and features
 | Packaging           | Plastic + paper, Plastic + sticker |
 | Flavor              | Nuts, Chocolate                    |
 
-Example conjoint task
 
-|  |  |  |
-|----|----|----|
+:::: {.callout-tip icon=false}
+### Example conjoint question/task
+
+**If these two granola bars were your only options, which would you choose?**
+
+|   |   |   |
+|----------------------|:--------------------:|:--------------------:|
 | Price | \$3 | \$4 |
 | Packaging | ![Plastic + paper](img/Study%205%20-%20Images%20used%20in%20conjoint%20plasticpaper.png) | ![Plastic + sticker](img/Study%205%20-%20Images%20used%20in%20conjoint%20plastic%20%20sticker.png) |
 | Flavor | Chocolate chips | Nuts |
+| **Choice** | <input type="radio" name="ex1"> | <input type="radio" name="ex1"> |
+
+::::
