@@ -60,6 +60,8 @@ $footer-font-size: 0.9rem;
 $link-color: $orange;
 $link-hover-color: $red;
 
+$code-font-size: 0.8rem;
+
 
 /*-- scss:rules --*/
 h1, .h1, h2, .h2 {
@@ -97,16 +99,25 @@ thead th {
 }
 
 // Format output kind of like code, but just with a border
-.cell-output-stdout {
+.cell-output-stdout, .cell-output-stderr, .cell-output-error {
     margin: 0 0 1em;
     border: none;
     padding: .4em;
     // background-color: rgba(233, 236, 239, 0);
-    border: 1px solid rgba(233, 236, 239, .8);
+    border: 2px solid rgba(233, 236, 239, 1);
     border-radius: .25rem;
 
     pre {
         color: #383a42;
         margin-bottom: 0;
+    }
+}
+
+.cell-output-error {
+    background-color: lighten($red, 51%);
+    border: 1px solid lighten($red, 25%);
+
+    pre {
+        color: $red;
     }
 }
