@@ -3,16 +3,7 @@ title: "Clean and join data"
 subtitle: "Combining individual- and alternative-level data"
 ---
 
-```{r}
-#| label: setup
-#| include: false
-
-knitr::opts_chunk$set(
-  class.output = "bloop"
-)
-```
-
-Popular conjoint survey platforms like Qualtrics and Sawtooth typically provide results data in two separate data files: (1) individual participant-level responses and (2) alternative-level combinations of features that each respondent saw. To analyze the results of a conjoint experiment using regression, the two datasets need to be joined.
+Popular conjoint survey platforms like Qualtrics and Sawtooth typically provide results in two separate data files: (1) individual participant-level responses and (2) alternative-level combinations of features that each respondent saw. To analyze the results of a conjoint experiment using regression, the two datasets need to be joined.
 
 ```{r}
 #| include: false
@@ -54,7 +45,7 @@ responses
 
 ## Possible alternatives
 
-In this example, the `CBC_Random{N}` columns show which of the two alternatives were selected in each task. However, they do not provide the complete context of the experimental task, like which combinations of levels were displayed with each feature. This information is crucial for conjoint analysis, since we are trying to statistically detect the salience of specific levels and features. 
+In this example, the `CBC_Random{N}` columns show which of the two alternatives were selected in each task. However, they do not provide the complete context of the experimental task, like which combinations of levels were displayed with each feature. This information is crucial for conjoint analysis, since we are trying to statistically detect the salience of specific levels and features in relation to others. 
 
 Alternative-level data provides this context. In this data, each row represents one of the choices presented to a respondent, with a column for each feature and the alternative shown and a column linking the row to the respondent ID (`version` in this example; the exact name of the column varies across survey platforms). Some survey platforms include a column indicating which choice was selected; this example data does not and instead includes it in `responses`.
 
@@ -70,10 +61,9 @@ alternatives |>
   summarize(
     versions = n_distinct(version),
     questions = n_distinct(question),
-    alts = n_distinct(alt)
+    alts = n_distinct(alt),
+    rows = n()
   )
-
-nrow(alternatives)
 ```
 
 To illustrate, this data shows that respondent 4 (a 19-year-old female, as seen in `responses`) saw this question in the first task (`question == 1`):
@@ -194,7 +184,8 @@ responses_long_expanded |>
   summarize(
     resp_ids = n_distinct(resp_id),
     questions = n_distinct(question),
-    alts = n_distinct(alt)
+    alts = n_distinct(alt),
+    rows = n()
   )
 ```
 

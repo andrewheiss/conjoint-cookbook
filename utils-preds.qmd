@@ -11,7 +11,6 @@ knitr::opts_chunk$set(
   dev = "ragg_png",
   fig.align = "center",
   out.width = "90%",
-  collapse = TRUE,
   cache.extra = 1234  # Change number to invalidate cache
 )
 
