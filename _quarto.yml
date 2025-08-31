@@ -2,22 +2,25 @@ project:
   type: book
   preview:
     port: 7777
-  render: 
-    # Render all .qmd files
-    - "**/*.qmd"
-
-    # Don't render anything in the manuscript folder
-    - "!manuscript/"
+  resources:
+    - "assets/**"
 
 execute:
   freeze: auto
 
 book:
-  title: "Interdisciplinary guide to conjoint analysis"
+  title: "The Conjoint Cookbook"
+  subtitle: "A practical, interdisciplinary guide to designing, fielding, and analyzing choice experiments with R"
   author:
   - name: Andrew Heiss
+    affiliation: Georgia State University
+    url: https://www.andrewheiss.com
     orcid: 0000-0002-3948-3914
-  date: "2024-12-23"
+  - name: John Paul Helveston
+    affiliation: George Washington University
+    url: https://www.jhelvy.com/
+    orcid: 0000-0002-2657-9191
+  date: "2025-08-26"
 
   repo-url: "https://github.com/andrewheiss/golden-gorilla"
   repo-actions: [source, issue]
@@ -28,19 +31,21 @@ book:
     - part: "Introduction"
       chapters:
         - index.qmd
-    - part: "Dealing with data"
-      chapters:
-        - process-reshape-data.qmd
-    - part: "Estimands"
-      chapters:
         - mms-amces.qmd
         - utils-preds.qmd
-    - part: "Causal effects"
-      chapters: 
+    - part: "Designing"
+      chapters:
+        - index.qmd
+    - part: "Fielding"
+      chapters:
+        - index.qmd
+        - process-reshape-data.qmd
+    - part: "Analyzing: causal effects"
+      chapters:
         - mms-amces-ols.qmd
         - mms-amces-multinomial.qmd
         - mms-amces-bayes.qmd
-    - part: "Preferences"
+    - part: "Analyzing: preference descriptions"
       chapters:
         - utils-preds-freq.qmd
         - utils-preds-bayes.qmd
@@ -50,8 +55,34 @@ book:
 
 format:
   html:
+    # code-link: true  # This is neat, but goes kinda slow
     toc-title: On this page
+
+    filters:
+      - output-styling
+    output-styling:
+      appearance: default
+
     highlight-style: atom-one
     theme:
       - zephyr
       - html/custom.scss
+    include-in-header: 
+      - text: |
+          <link rel="preload" href="/assets/fonts/AfacadFlux-VariableFont_slnt,wght.ttf" as="font" type="font/ttf" crossorigin>
+          <link rel="preload" href="/assets/fonts/LibreFranklin-VariableFont_wght.ttf" as="font" type="font/ttf" crossorigin>
+          <link rel="preload" href="/assets/fonts/LibreFranklin-Italic-VariableFont_wght.ttf" as="font" type="font/ttf" crossorigin>
+
+    fig-width: 6
+    fig-height: 3.708  # 6 * 0.618
+    fig-align: center
+
+    knitr:
+      opts_chunk:
+        dev: "ragg_png"
+        dpi: 300
+        out-width: "90%"
+        R.options:
+          digits: 4
+          width: 200
+          knitr.graphics.auto_pdf: true

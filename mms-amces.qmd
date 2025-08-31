@@ -1,4 +1,270 @@
 ---
-title: "Causal effects"
+title: "Causal estimands"
 subtitle: "Marginal means (MMs) and average marginal component effects (AMCEs)"
+format:
+  html:
+    code-fold: true
 ---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tinytable)
+```
+
+## Building the intuition for marginal means, differences in marginal means, and regression coefficients
+
+### Marginal means
+
+At its core, a "marginal mean" refers to the literal mean in the margins in a contingency table of model predictions based on a balanced grid of predictors.
+
+To illustrate, we'll make a model that predicts penguin weight based on species and sex and then make predictions for a balanced grid of covariates (i.e. male Adelie, female Adelie, male Chinstrap, female Chinstrap, male Gentoo, female Gentoo):
+
+```{r}
+#| label: packages-data
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(marginaleffects)
+```
+
+```{r}
+#| label: make-example-model
+#| code-fold: show
+penguins <- penguins |> drop_na(sex)
+
+model <- lm(body_mass ~ species + sex, data = penguins)
+
+preds <- model |> 
+  predictions(datagrid(species = unique, sex = unique))
+```
+
+```{r}
+#| label: basic-contingency-table
+
+preds |>
+  select(estimate, species, sex) |>
+  pivot_wider(names_from = sex, values_from = estimate) |>
+  select(Species = species, Female = female, Male = male) |>
+  tt(
+    notes = "Predicted penguin weights (g) from model `lm(body_mass ~ species + sex)`"
+  ) |>
+  group_tt(
+    j = list("Sex" = 2:3)
+  ) |>
+  format_tt("notes", markdown = TRUE) |>
+  style_tt(j = 2:3, align = "c")
+```
+
+We can add a column and row in the margins to show the species-specific and sex-specific average predicted weights. For the sex-specific averages, all the between-species variation is "marginalized out" or accounted for. For the species-specific averages, all the between-sex variation is similarly marginalized out:
+
+```{r}
+#| label: fancy-mm-contingency-table
+
+mean_sex <- preds |>
+  group_by(sex) |>
+  mutate(avg_estimate = mean(estimate)) |>
+  select(species, sex, estimate, avg_estimate) |>
+  pivot_wider(names_from = species, values_from = estimate) |>
+  mutate(
+    avg_explanation = glue::glue(
+      "{round(avg_estimate, 0)}<br>",
+      "<span style='font-size:70%'>",
+      "({round(Adelie, 0)} + {round(Chinstrap, 0)} + {round(Gentoo, 0)}) / 3",
+      "</span>"
+    )
+  ) |>
+  select(sex, avg_explanation) |>
+  mutate(species = "Marginal mean") |>
+  pivot_wider(names_from = sex, values_from = avg_explanation)
+
+mean_species <- preds |>
+  group_by(species) |>
+  summarize(avg_estimate = mean(estimate))
+
+all_combined <- preds |>
+  ungroup() |>
+  select(estimate, species, sex) |>
+  pivot_wider(names_from = sex, values_from = estimate) |>
+  left_join(mean_species, by = join_by(species)) |>
+  arrange(species) |>
+  mutate(
+    avg_explanation = glue::glue(
+      "{round(avg_estimate, 0)}<br>",
+      "<span style='font-size:70%'>",
+      "({round(female, 0)} + {round(male, 0)}) / 2",
+      "</span>"
+    )
+  ) |>
+  mutate(across(c(female, male), ~ as.character(round(., 0)))) |>
+  select(-avg_estimate) |>
+  bind_rows(mean_sex)
+
+all_combined |>
+  select(
+    Species = species,
+    Female = female,
+    Male = male,
+    `Marginal mean` = avg_explanation
+  ) |>
+  tt(
+    notes = "Predicted penguin weights (g) from model `lm(body_mass ~ species + sex)`"
+  ) |>
+  group_tt(
+    j = list("Sex" = 2:3)
+  ) |>
+  format_tt(replace = "") |>
+  format_tt("notes", markdown = TRUE) |>
+  style_tt(j = 2:4, align = "c") |>
+  style_tt(i = 4, line = "t") |>
+  theme_html(i = 4, css = "border-top-style: dashed;") |>
+  style_tt(i = 1:4, j = 3, line = "r") |>
+  theme_html(j = 3, css = "border-right-style: dashed;")
+```
+
+```{r extract-sex-means, include=FALSE}
+mean_sex_small <- preds |> 
+  group_by(sex) |> 
+  summarize(avg_estimate = mean(estimate)) |> 
+  split(~sex)
+```
+
+### Differences in marginal means
+
+Because regression is just fancy averages, the differences in marginal means here are actually identical to the coefficients in regression model. For instance, here are the results from the model:
+
+```{r show-model-results}
+#| code-fold: show
+model |> broom::tidy()
+```
+
+The `sexmale` coefficient of `r round(filter(broom::tidy(model), term == "sexmale")$estimate, 2)` represents the effect of moving from male to female when species is held constant.
+
+The marginal means table shows the same thing. Marginalizing over species (i.e. holding species constant), the average predicted weight for female penguins is `r round(mean_sex_small$female$avg_estimate, 1)` and for male penguins is `r round(mean_sex_small$male$avg_estimate, 1)`. The difference in those marginal means is `r round(mean_sex_small$male$avg_estimate - mean_sex_small$female$avg_estimate, 2)`—identical to the `sexmale` coefficient! 
+
+```{r}
+amce_species <- preds |>
+  group_by(species) |>
+  summarize(avg_estimate = mean(estimate)) |>
+  mutate(amce = avg_estimate - avg_estimate[1]) |>
+  mutate(
+    amce_nice = glue::glue(
+      "{round(amce, 0)}<br>",
+      "<span style='font-size:70%'>",
+      "{species} − {species[1]}, or<br>",
+      "{round(avg_estimate, 0)} − {round(avg_estimate[1], 0)}",
+      "</span>"
+    )
+  ) |>
+  select(species, amce_nice)
+
+amce_sex <- preds |>
+  group_by(sex) |>
+  summarize(avg_estimate = mean(estimate)) |>
+  mutate(amce = avg_estimate - avg_estimate[1]) |>
+  mutate(
+    amce_nice = glue::glue(
+      "{round(amce, 0)}<br>",
+      "<span style='font-size:70%'>",
+      "{sex} − {sex[1]}, or<br>",
+      "{round(avg_estimate, 0)} − {round(avg_estimate[1], 0)}",
+      "</span>"
+    )
+  ) |>
+  select(sex, amce_nice) |>
+  mutate(species = "∆ in marginal mean") |>
+  pivot_wider(names_from = sex, values_from = amce_nice)
+```
+
+```{r}
+all_combined |>
+  left_join(amce_species, by = join_by(species)) |>
+  bind_rows(amce_sex) |>
+  select(
+    Species = species,
+    Female = female,
+    Male = male,
+    `Marginal mean` = avg_explanation,
+    `∆ in marginal mean` = amce_nice
+  ) |>
+  tt(
+    notes = "Predicted penguin weights (g) from model `lm(body_mass ~ species + sex)`"
+  ) |>
+  group_tt(
+    j = list("Sex" = 2:3)
+  ) |>
+  format_tt(replace = "") |>
+  format_tt("notes", markdown = TRUE) |>
+  style_tt(j = 2:5, align = "c") |>
+  style_tt(i = 4, line = "t") |>
+  theme_html(i = 4, css = "border-top-style: dashed;") |>
+  style_tt(i = 1:5, j = 3, line = "r") |>
+  theme_html(j = 3, css = "border-right-style: dashed;")
+```
+
+**Differences in marginal means are equivalent to marginal effects or regression coefficients.** 
+
+### Faster way with {marginaleffects}
+
+These manual calculations are a pain though. We can use {marginaleffects} to do it more directly:
+
+```{r}
+#| code-fold: show
+
+avg_predictions(model, 
+  newdata = datagrid(species = unique, sex = unique),
+  by = c("sex", "species")
+)
+
+avg_comparisons(model, 
+  newdata = datagrid(species = unique, sex = unique)
+)
+```
+
+## Conjoint designs, marginal means, and AMCEs
+
+Marginal means in conjoints represent the probability-scale fitted values from the model, calculated across a balanced reference grid of all possible combinations of feature levels. These predictions are then marginalized or averaged across features of interest and result in causal estimands like the AMCE.
+
+In the case of the sticker experiment, there are 12 possible combinations of price, packaging, and flavor:
+
+```{r}
+stickers <- readRDS("data/processed_data/study_5_sticker.rds")
+
+model_ols <- lm(
+  choice ~ price + packaging + flavor,
+  data = stickers
+)
+```
+
+```{r}
+feature_grid <- stickers |> 
+  tidyr::expand(price, packaging, flavor)
+tt(feature_grid)
+```
+
+We can feed each row of this balanced grid into the model to generate 12 predicted values:
+
+```{r}
+predictions(model_ols, newdata = feature_grid)
+```
+
+Finally, we can marginalize or average these predicted values across features of interest. For instance, to find the marginal means for the two packaging conditions, we can calculate the group averages for the two types of packaging:
+
+```{r}
+predictions(model_ols, newdata = feature_grid) |> 
+  group_by(packaging) |> 
+  summarize(avg = mean(estimate))
+```
+
+Manually creating a balanced reference grid and using `group_by()` and `summarize()` is useful for understanding the intuition behind finding estimated marginal means, but in practice it is better to use `avg_predictions()` from {marginaleffects}, which (1) creates the balanced grid automatically, (2) provides standard errors and other estimates of uncertainty, and (3) can adjust the standard errors to account for repeated respondents:
+
+```{r}
+avg_predictions(
+  model_ols,
+  newdata = "balanced",
+  by = "packaging",
+  vcov = ~resp_id
+)
+```

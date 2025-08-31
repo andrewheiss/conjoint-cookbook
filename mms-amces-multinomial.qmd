@@ -1,23 +1,5 @@
 # MMs and AMCEs with frequentist multinomial regression
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(
-  fig.width = 6,
-  fig.height = 6 * 0.618,
-  fig.retina = 3,
-  dev = "ragg_png",
-  fig.align = "center",
-  out.width = "90%",
-  cache.extra = 1234  # Change number to invalidate cache
-)
-
-options(
-  digits = 4,
-  width = 300,
-  dplyr.summarise.inform = FALSE
-)
-```
-
 ```{r}
 #| label: packages-data
 #| warning: false
@@ -49,6 +31,8 @@ It is also possible to use a multinomial logistic regression model that matches 
 | {logitr} | Requires a unique choice ID index | No | Yes, with `randPars` argument |
 | {nnet} | None | Yes | No |
 
+
+
 ::: {.panel-tabset}
 ### {mlogit}
 
@@ -59,20 +43,18 @@ stickers_indexed <- stickers |>
   group_by(resp_id, question) |> 
   mutate(choice_id = cur_group_id()) |> 
   ungroup() |> 
+  as.data.frame() |>  # mlogit() complains and breaks when working with tibbles :(
   dfidx(
     idx = list(c("choice_id", "resp_id"), "alt"),
-    choice = "choice",
-    shape = "long"
+    choice = "choice"
   )
-
-head(stickers_indexed)
 ```
 
 It then uses R's standard formula syntax to define the model:
 
 ```{r}
 model_mlogit <- mlogit(
-  choice ~ price + packaging + flavor,
+  choice ~ price + packaging + flavor | 0,
   data = stickers_indexed
 )
 
@@ -162,6 +144,8 @@ model_nnet <- multinom(
 :::
 
 {mlogit} is the oldest and most commonly used multinomial regression package and is the basis for many conjoint textbooks [@Feit], so I'll illustrate how to use it to calculate MMs and AMCEs. {marginaleffects} does not support {mlogit} models because of the idiosyncracies its prediction functions, so the process requires a little manual work.
+
+
 
 ## Marginal means
 
@@ -356,6 +340,7 @@ fit_predict_mlogit <- function(.split, feature_grid, ...) {
     group_by(resp_id, question) |> 
     mutate(choice_id = cur_group_id()) |> 
     ungroup() |> 
+    as.data.frame() |> 
     dfidx(
       idx = list(c("choice_id", "resp_id"), "alt"),
       choice = "choice",
@@ -597,6 +582,182 @@ ggplot(
   geom_vline(xintercept = 0) +
   geom_pointrange(aes(xmin = .lower, xmax = .upper)) +
   scale_x_continuous(labels = label_pp) +
+  guides(color = "none") +
+  facet_col(vars(feature), scales = "free_y", space = "free")
+```
+
+---
+
+
+```{r}
+model_logitr
+
+alts <- stickers |>
+  tidyr::expand(price, packaging, flavor)
+
+combn(nrow(alts), 2)
+choose(12, 2)
+
+n_alt <- 2
+
+choice_sets_long <- alts |>
+  (\(x) combn(seq_len(nrow(x)), m = n_alt, simplify = FALSE))() |>
+  map(\(idx) {
+    alts[idx, ] |>
+      mutate(obsID = cur_group_id(), alt = seq_len(n_alt))
+  }) |>
+  list_rbind(names_to = "obsID") |>
+  mutate(obsID = as.integer(obsID)) |>
+  arrange(obsID, alt) |>
+  as_tibble()
+choice_sets_long
+
+preds_logitr <- predict(
+  model_logitr,
+  newdata = choice_sets_long,
+  obsID = 'obsID',
+  returnData = TRUE
+)
+
+preds_logitr |>
+  group_by(packaging) |>
+  summarize(avg_pred = mean(predicted_prob))
+
+mms_logitr <- list(
+  "Price" = "price",
+  "Packaging" = "packaging",
+  "Flavor" = "flavor"
+) |>
+  map(\(.x) {
+    preds_logitr |>
+      group_by(attribute = .data[[.x]]) |>
+      summarize(
+        estimate = mean(predicted_prob),
+        se = sd(predicted_prob) / sqrt(n()),
+        conf.low = estimate - 1.96 * se,
+        conf.high = estimate + 1.96 * se
+      )
+  }) |>
+  list_rbind(names_to = "feature")
+
+ggplot(
+  mms_logitr,
+  aes(x = estimate, y = fct_rev(attribute), color = feature)
+) +
+  geom_vline(xintercept = 0.5) +
+  geom_pointrange(aes(xmin = conf.low, xmax = conf.high)) +
+  scale_x_continuous(labels = label_percent()) +
+  guides(color = "none") +
+  facet_col(vars(feature), scales = "free_y", space = "free")
+```
+
+## Bootstrapping with {logitr}
+
+Phew, this is a messy attempt
+
+```{r}
+library(rsample)
+
+set.seed(734498) # From random.org
+
+bootstrapped_stickers_logitr <- stickers |>
+  group_by(resp_id) |>
+  nest() |>
+  ungroup() |>
+  bootstraps(
+    times = 1000
+  )
+
+fit_logitr <- function(.split) {
+  library(dplyr)
+  library(tidyr)
+  library(logitr)
+
+  .df <- rsample::analysis(.split) |>
+    # Assign new unique respondent IDs (since some will be repeated through the
+    # bootstrapping process)
+    mutate(resp_id = row_number()) |>
+    # Unnest the respondent-specific data
+    unnest(data) |>
+    group_by(resp_id, question) |>
+    mutate(choice_id = cur_group_id()) |>
+    ungroup()
+
+  # Fit logitr model
+  model_logitr <- logitr(
+    data = .df,
+    outcome = "choice",
+    obsID = "choice_id",
+    pars = c("price", "packaging", "flavor")
+  )
+
+  # # Generate predicted probabilities on balanced feature grid
+  # predictions <- predict(model, newdata = feature_grid)
+
+  # # Aggregate predictions into feature-specific averages
+  # feature_grid |>
+  #   filter(alt == 1) |>
+  #   mutate(estimate = predictions[, 1]) |>
+  #   group_by(price, packaging, flavor) |>
+  #   summarize(estimate = mean(estimate)) |>
+  #   ungroup()
+}
+
+mirai::daemons(10)
+boot_results_purrr <- bootstrapped_stickers_logitr |>
+  # slice(1:10) |>
+  mutate(
+    model = map(
+      splits,
+      in_parallel(\(x) fit_logitr(x), fit_logitr = fit_logitr),
+      .progress = TRUE
+    )
+  )
+mirai::daemons(0)
+
+calc_mms_logitr <- function(pr) {
+  list(
+    "Price" = "price",
+    "Packaging" = "packaging",
+    "Flavor" = "flavor"
+  ) |>
+    map(\(.x) {
+      pr |>
+        group_by(attribute = .data[[.x]]) |>
+        summarize(
+          estimate = mean(estimate)
+        )
+    }) |>
+    list_rbind(names_to = "feature")
+}
+
+
+asdf <- boot_results_purrr |>
+  mutate(
+    preds = map(model, \(.x) {
+      predict(
+        .x,
+        newdata = choice_sets_long,
+        obsID = 'obsID',
+        returnData = TRUE
+      ) |> 
+        group_by(price, packaging, flavor) |>
+        summarize(estimate = mean(predicted_prob), .groups = "drop")
+    })
+  )
+
+asdfasdf <- asdf |> 
+  mutate(mms = map(preds, \(.preds) calc_mms_logitr(.preds)))
+
+asdfasdf |> 
+  unnest(mms) |> 
+  group_by(feature, attribute) |> 
+  summarize(details = percentile_ci(estimate)) |> 
+  unnest(details) |> 
+  ggplot(aes(x = .estimate, y = fct_rev(attribute), color = feature)) +
+  geom_vline(xintercept = 0.5) +
+  geom_pointrange(aes(xmin = .lower, xmax = .upper)) +
+  scale_x_continuous(labels = label_percent()) +
   guides(color = "none") +
   facet_col(vars(feature), scales = "free_y", space = "free")
 ```

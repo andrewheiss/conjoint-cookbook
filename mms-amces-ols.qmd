@@ -1,23 +1,5 @@
 # MMs and AMCEs with OLS
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(
-  fig.width = 6,
-  fig.height = 6 * 0.618,
-  fig.retina = 3,
-  dev = "ragg_png",
-  fig.align = "center",
-  out.width = "90%",
-  cache.extra = 1234  # Change number to invalidate cache
-)
-
-options(
-  digits = 4,
-  width = 300,
-  dplyr.summarise.inform = FALSE
-)
-```
-
 ```{r}
 #| label: packages-data
 #| warning: false
@@ -32,6 +14,7 @@ library(ggforce)
 
 stickers <- readRDS("data/processed_data/study_5_sticker.rds")
 ```
+
 
 ## Model
 
@@ -90,36 +73,18 @@ avg_predictions(
 We can calculate the marginal means individually for each conjoint feature, then combine them all into one large data frame for plotting and table-making.
 
 ```{r}
-mm_price_ols <- avg_predictions(
-  model_ols,
-  newdata = "balanced",
-  by = "price",
-  vcov = ~resp_id
-) |>
-  rename(attribute = price)
-
-mm_packaging_ols <- avg_predictions(
-  model_ols,
-  newdata = "balanced",
-  by = "packaging",
-  vcov = ~resp_id
-) |>
-  rename(attribute = packaging)
-
-mm_flavor_ols <- avg_predictions(
-  model_ols,
-  newdata = "balanced",
-  by = "flavor",
-  vcov = ~resp_id
-) |>
-  rename(attribute = flavor)
-
-mm_ols <- bind_rows(list(
-  "Price" = mm_price_ols,
-  "Packaging" = mm_packaging_ols,
-  "Flavor" = mm_flavor_ols
-), .id = "feature") |>
-  as_tibble()
+mm_ols <- c("price", "packaging", "flavor") |>
+  set_names(str_to_title) |>
+  map(\(x) {
+    avg_predictions(
+      model_ols,
+      newdata = "balanced",
+      by = x,
+      vcov = ~resp_id
+    ) |>
+      rename(attribute = all_of(x))
+  }) |>
+  list_rbind(names_to = "feature")
 ```
 
 ```{r}
@@ -134,7 +99,6 @@ ggplot(
   facet_col(vars(feature), scales = "free_y", space = "free")
 ```
 
-
 ## Average marginal component effects (AMCEs)
 
 ```{r}
@@ -147,17 +111,20 @@ amce_ols
 ```
 
 ```{r}
-# Need to use %>% instead of |> here because of the . placeholder in add_row()
-amce_ols %>%
+amces_split <- amce_ols |>
   separate_wider_delim(
     contrast, 
     delim = " - ", 
     names = c("attribute", "reference_level")
-  ) %>%
-  add_row(
-    estimate = 0, conf.low = 0, conf.high = 0,
-    term = unique(.$term), attribute = unique(.$reference_level)
-  ) %>%
+  )
+
+reference_categories <- amces_split |>
+  distinct(term, reference_level) |>
+  rename(attribute = reference_level) |>
+  mutate(estimate = 0, conf.low = 0, conf.high = 0)
+
+amces_split |>
+  bind_rows(reference_categories) |> 
   ggplot(aes(x = estimate, y = fct_rev(attribute), color = term)) +
   geom_vline(xintercept = 0) +
   geom_pointrange(aes(xmin = conf.low, xmax = conf.high)) +
@@ -165,3 +132,7 @@ amce_ols %>%
   guides(color = "none") +
   facet_col(vars(term), scales = "free_y", space = "free")
 ```
+
+## Average Feature Choice Probability (AFCP)
+
+Maybe?

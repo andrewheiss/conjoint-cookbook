@@ -7,9 +7,105 @@ include-after-body:
         display: none !important;
     }
     </style>
+references:
+- id: HainmuellerHopkinsYamamoto:2014
+  author:
+    - family: Hainmueller
+      given: Jens
+    - family: Hopkins
+      given: Daniel J.
+    - family: Yamamoto
+      given: Teppei
+  citation-key: HainmuellerHopkinsYamamoto:2014
+  container-title: Political Analysis
+  DOI: 10.1093/pan/mpt024
+  issue: '1'
+  issued:
+    - year: 2014
+  page: 1-30
+  title: >-
+    Causal inference in conjoint analysis: Understanding multidimensional
+    choices via stated preference experiments
+  type: article-journal
+  volume: '22'
+
+- id: SokolovaKrishnaDoring:2023
+  accessed:
+    - year: 2025
+      month: 8
+      day: 29
+  author:
+    - family: Sokolova
+      given: Tatiana
+    - family: Krishna
+      given: Aradhna
+    - family: Döring
+      given: Tim
+  citation-key: SokolovaKrishnaDoring:2023
+  container-title: Journal of Consumer Research
+  DOI: 10.1093/jcr/ucad008
+  ISSN: 0093-5301, 1537-5277
+  issue: '3'
+  issued:
+    - year: 2023
+      month: 9
+      day: 15
+  language: en
+  license: https://creativecommons.org/licenses/by-nc/4.0/
+  page: 468-491
+  source: DOI.org (Crossref)
+  title: >-
+    Paper Meets Plastic: The Perceived Environmental Friendliness of Product
+    Packaging
+  title-short: Paper Meets Plastic
+  type: article-journal
+  URL: https://academic.oup.com/jcr/article/50/3/468/7008764
+  volume: '50'
+
+- id: ChapmanFeit:2019
+  accessed:
+    - year: 2023
+      month: 8
+      day: 12
+  author:
+    - family: Chapman
+      given: Chris
+    - family: Feit
+      given: Elea McDonnell
+  citation-key: ChapmanFeit:2019
+  collection-title: Use R!
+  DOI: 10.1007/978-3-030-14316-9
+  edition: '2'
+  event-place: Cham, Switzerland
+  ISBN: 978-3-030-14315-2 978-3-030-14316-9
+  issued:
+    - year: 2019
+  language: en
+  publisher: Springer Nature Switzerland
+  publisher-place: Cham, Switzerland
+  source: DOI.org (Crossref)
+  title: R For Marketing Research and Analytics
+  type: book
+  URL: http://link.springer.com/10.1007/978-3-030-14316-9
 ---
 
-Conjoint levels and features
+blah blah blah intro stuff here
+
+Conjoint experiments or forced choice experiments (where respondents are shown randomly shuffled combinations of features and are asked to choose their most preferred option, and then they repeat that over and over again) have long been popular in marketing, and since 2014 they’ve become popular in polisci, public policy, and social science more broadly. But even though the actual approach is used the same way across disciplines, the estimands that disciplines are interested in are completely different.
+
+In marketing, they care about consumer preferences and market shares, so they use conjoint data to build simulations of hypothetical product profiles, ultimately measuring market preferences.
+
+In polisci, they care about casual effects—e.g. how much does the favorability of a political candidate change if they are a lawyer vs. not a lawyer. In this world, analysts don’t look at aggregate market preferences, but look at the exact causal levers and effects associated with different experimental conditions.
+
+**The two worlds know nothing about each other.**
+
+Main point of book—bridging the two worlds of polisci-style causal effects (AMCEs and marginal means and AFCPs) with marketing/econ-style preference and utility descriptions + providing hands on code examples of the methods, from basic OLS from polisci to hierarchical Bayesian multinomial logit in marketing
+
+## Running examples {.unnumbered}
+
+### Product packaging {.unnumbered}
+
+Study 5 from @SokolovaKrishnaDoring:2023 (and data from [ResearchBox](https://researchbox.org/712))
 
 | Features/Attributes | Levels                             |
 |---------------------|------------------------------------|
@@ -31,3 +127,66 @@ Conjoint levels and features
 | **Choice** | <input type="radio" name="ex1"> | <input type="radio" name="ex1"> |
 
 ::::
+
+### Political candidates {.unnumbered}
+
+From @HainmuellerHopkinsYamamoto:2014
+
+| Features/Attributes | Levels                                                                                            |
+|----------------------|------------------------------------------------------|
+| Military service    | Served, Did not serve                                                                             |
+| Religion            | None, Jewish, Catholic, Mainline protestant, Evangelical protestant, Mormon                       |
+| College             | No BA, Baptist college, Community college, State university, Small college, Ivy League university |
+| Profession          | Business owner, Lawyer, Doctor, High school teacher, Farmer, Car dealer                           |
+| Gender              | Male, Female                                                                                      |
+| Income              | \$32,000; \$54,000; \$65,000; \$92,000; \$210,000; \$5,100,000                                    |
+| Race/Ethnicity      | White, Native American, Black, Hispanic, Caucasian, Asian American                                |
+| Age                 | 36, 45, 52, 60, 68, 75        
+
+:::: {.callout-tip icon=false}
+### Example conjoint survey question
+
+**If you had to choose between them, which of these two candidates would you vote for?**
+
+|                  |    Candidate 1   |      Candidate 2      |
+|------------------|:----------------:|:---------------------:|
+| Military service | Did not serve    | Served                |
+| Religion         | None             | Mormon                |
+| College          | State university | Ivy League university |
+| Profession       | Lawyer           | Business owner        |
+| Gender           | Female           | Female                |
+| Income           | \$54,000         | \$92,000              |
+| Race/Ethnicity   | White            | Asian American        |
+| Age              | 45               | 68                    |
+| **Choice**     | <input type="radio" name="ex3"> | <input type="radio" name="ex3"> |
+
+::::
+
+### Minivans {.unnumbered}
+
+From chapter 13 in @ChapmanFeit:2019
+
+| Features/Attributes | Levels                       |
+|:--------------------|:-----------------------------|
+| Passengers          | 6, 7, 8                      |
+| Cargo area          | 2 feet, 3 feet               |
+| Engine              | Gas, electric, hybrid        |
+| Price               | \$30,000; \$35,000; \$40,000 |
+
+
+::: {.callout-tip icon="false"}
+
+### Example survey question
+
+|            |            Option 1             |            Option 2             |            Option 3             |
+|------------------|:----------------:|:----------------:|:----------------:|
+| Passengers |                7                |                8                |                6                |
+| Cargo area |             3 feet              |             3 feet              |             2 feet              |
+| Engine     |            Electric             |               Gas               |             Hybrid              |
+| Price      |            \$40,000             |            \$40,000             |            \$30,000             |
+| **Choice**     | <input type="radio" name="ex2"> | <input type="radio" name="ex2"> | <input type="radio" name="ex2"> |
+
+:::
+
+
+## References {.unnumbered}

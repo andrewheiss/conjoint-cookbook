@@ -1,25 +1,7 @@
 ---
-title: "Preferences"
+title: "Descriptive estimands"
 subtitle: "Utilities, predictions, and simulations"
 ---
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(
-  fig.width = 6,
-  fig.height = 6 * 0.618,
-  fig.retina = 3,
-  dev = "ragg_png",
-  fig.align = "center",
-  out.width = "90%",
-  cache.extra = 1234  # Change number to invalidate cache
-)
-
-options(
-  digits = 4,
-  width = 300,
-  dplyr.summarise.inform = FALSE
-)
-```
 
 ```{r}
 #| label: packages-data
@@ -40,12 +22,14 @@ stickers_indexed <- stickers |>
   group_by(resp_id, question) |> 
   mutate(choice_id = cur_group_id()) |> 
   ungroup() |> 
+  as.data.frame() |>  # mlogit() complains and breaks when working with tibbles :(
   dfidx(
     idx = list(c("choice_id", "resp_id"), "alt"),
     choice = "choice",
     shape = "long"
   )
 ```
+
 
 ```{r}
 #| echo: true

@@ -16,3 +16,5 @@ data/raw_data/*
 
 # Ignore models for now
 models/*
+
+admin/*

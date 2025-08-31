@@ -1,24 +1,5 @@
 # Utilities and predictions with frequentist multinomial regression
 
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(
-  fig.width = 6,
-  fig.height = 6 * 0.618,
-  fig.retina = 3,
-  dev = "ragg_png",
-  fig.align = "center",
-  out.width = "90%",
-  cache.extra = 1234  # Change number to invalidate cache
-)
-
-options(
-  digits = 4,
-  width = 300,
-  dplyr.summarise.inform = FALSE
-)
-```
-
 ```{r}
 #| label: packages-data
 #| warning: false
