@@ -22,6 +22,8 @@ book:
     orcid: 0000-0002-2657-9191
   date: "2025-08-26"
 
+  site-url: "https://andrewheiss.github.io/conjoint-cookbook/"
+
   repo-url: "https://github.com/andrewheiss/golden-gorilla"
   repo-actions: [source, issue]
 
@@ -69,9 +71,9 @@ format:
       - html/custom.scss
     include-in-header: 
       - text: |
-          <link rel="preload" href="/assets/fonts/AfacadFlux-VariableFont_slnt,wght.ttf" as="font" type="font/ttf" crossorigin>
-          <link rel="preload" href="/assets/fonts/LibreFranklin-VariableFont_wght.ttf" as="font" type="font/ttf" crossorigin>
-          <link rel="preload" href="/assets/fonts/LibreFranklin-Italic-VariableFont_wght.ttf" as="font" type="font/ttf" crossorigin>
+          <link rel="preload" href="assets/fonts/AfacadFlux-VariableFont_slnt,wght.ttf" as="font" type="font/ttf" crossorigin>
+          <link rel="preload" href="assets/fonts/LibreFranklin-VariableFont_wght.ttf" as="font" type="font/ttf" crossorigin>
+          <link rel="preload" href="assets/fonts/LibreFranklin-Italic-VariableFont_wght.ttf" as="font" type="font/ttf" crossorigin>
 
     fig-width: 6
     fig-height: 3.708  # 6 * 0.618
