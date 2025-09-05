@@ -29,6 +29,12 @@ book:
 
   page-navigation: true
 
+  sidebar: 
+    logo: /img/logo.png
+    logo-alt: The Conjoint Cookbook hex logo
+    search: true
+    style: docked
+
   chapters:
     - part: "Introduction"
       chapters:
