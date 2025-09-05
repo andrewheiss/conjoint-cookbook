@@ -1,4 +1,4 @@
-# Tutorial on conjoint experiments
+# The Conjoint Cookbook
 
 
 <!-- README.md is generated from README.qmd. Please edit that file -->
@@ -17,3 +17,24 @@ codename_message()
 codename(seed = "conjoint psych", type = "ubuntu")
 #> [1] "golden gorilla"
 ```
+
+## Colors
+
+The main red color (`#F2274C`) was taken from a standard red/white apron image I found on Google Docs. The other colors are roughly perceptually balanced using HCL hues around that red:
+
+    #2E5BE4  (blue)
+    #1AB07A  (green-teal)
+    #F2274C  (red)
+    #F9A825  (gold)
+    #8E44AD  (purple)
+
+## Icons in logo
+
+The icons in the fake conjoint survey in the logo come from [Streamline](https://home.streamlinehq.com/)’s [Core Solid set](https://www.streamlinehq.com/icons/core-solid-free), and are Creative Commons licensed:
+
+- [Fork Spoon](https://www.streamlinehq.com/icons/download/fork-spoon--26756)
+- [Fork Knife](https://www.streamlinehq.com/icons/download/fork-knife--26756)
+- [Burger](https://www.streamlinehq.com/icons/download/burger--26756)
+- [Toast](https://www.streamlinehq.com/icons/download/toast--26756)
+- [Ice Cream 3](https://www.streamlinehq.com/icons/download/ice-cream-3--26756)
+- [Ice Cream 2](https://www.streamlinehq.com/icons/download/ice-cream-2--26756)
