@@ -1,0 +1,21 @@
+{
+  "hash": "85ae9160ccbbcf2a3d52de9c858c0c37",
+  "result": {
+    "engine": "knitr",
+    "markdown": "# Utilities and predictions with frequentist multinomial regression\n\n\n::: {.cell}\n\n```{.r .cell-code}\nlibrary(tidyverse)\nlibrary(mlogit)\nlibrary(marginaleffects)\nlibrary(parameters)\nlibrary(tinytable)\nlibrary(scales)\nlibrary(ggforce)\n\nstickers <- readRDS(\"data/processed_data/study_5_sticker.rds\")\n```\n:::\n\n",
+    "supporting": [
+      "utils-preds-freq_files"
+    ],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {},
+    "engineDependencies": {
+      "knitr": [
+        "{\"type\":\"list\",\"attributes\":{},\"value\":[]}"
+      ]
+    },
+    "preserve": null,
+    "postProcess": false
+  }
+}
